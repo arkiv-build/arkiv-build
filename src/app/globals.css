@@ -128,3 +128,38 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .schema-flow .react-flow__pane {
+    cursor: grab;
+  }
+
+  .schema-flow .react-flow__pane:active {
+    cursor: grabbing;
+  }
+
+  .schema-flow .react-flow__attribution {
+    display: none;
+  }
+
+  .schema-flow .react-flow__controls-button {
+    border-color: color-mix(in oklab, var(--border) 70%, white);
+    background: color-mix(in oklab, white 82%, transparent);
+    color: color-mix(in oklab, var(--foreground) 82%, transparent);
+    backdrop-filter: blur(16px);
+  }
+
+  .schema-flow .react-flow__controls-button:hover {
+    background: color-mix(in oklab, white 94%, transparent);
+  }
+
+  .schema-flow .react-flow__edge-path {
+    stroke: color-mix(in oklab, #38bdf8 62%, #94a3b8);
+    stroke-width: 2;
+  }
+
+  .schema-flow .react-flow__connection-path {
+    stroke: color-mix(in oklab, #38bdf8 75%, white);
+    stroke-width: 2.5;
+  }
+}

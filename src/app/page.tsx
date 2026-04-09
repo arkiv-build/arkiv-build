@@ -29,7 +29,8 @@ function SchemaCanvas() {
   const addEntity = useSchemaStore((state) => state.addEntity);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_26%),linear-gradient(180deg,_rgba(248,250,252,1)_0%,_rgba(239,246,255,1)_100%)] dark:bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.16),_transparent_22%),linear-gradient(180deg,_rgba(2,6,23,1)_0%,_rgba(15,23,42,1)_100%)]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(125,211,252,0.34),_transparent_28%),radial-gradient(circle_at_85%_16%,_rgba(255,255,255,0.96),_rgba(255,255,255,0)_26%),linear-gradient(180deg,_#f8fbff_0%,_#edf4ff_52%,_#f8fbff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.22),_transparent_24%),radial-gradient(circle_at_85%_12%,_rgba(56,189,248,0.08),_transparent_20%),linear-gradient(180deg,_#020617_0%,_#0f172a_58%,_#111827_100%)]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.62),rgba(255,255,255,0))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.5),rgba(15,23,42,0))]" />
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -42,36 +43,37 @@ function SchemaCanvas() {
         minZoom={0.4}
         maxZoom={1.5}
         proOptions={{ hideAttribution: true }}
+        className="schema-flow"
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1.25}
-          color="rgba(100, 116, 139, 0.32)"
+          gap={26}
+          size={1.15}
+          color="rgba(148, 163, 184, 0.28)"
         />
         <Controls
           position="bottom-right"
-          className="!overflow-hidden !rounded-2xl !border !border-slate-200/80 !bg-white/90 !shadow-lg backdrop-blur dark:!border-slate-800 dark:!bg-slate-950/90"
+          className="!overflow-hidden !rounded-[22px] !border !border-white/70 !bg-white/75 !shadow-[0_20px_45px_-28px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:!border-slate-800/80 dark:!bg-slate-950/80"
         />
 
         <Panel position="top-left">
-          <div className="flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white/85 p-3 shadow-lg backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950">
+          <div className="flex items-center gap-4 rounded-[26px] border border-white/70 bg-white/70 p-3.5 shadow-[0_25px_60px_-32px_rgba(15,23,42,0.38)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/72">
+            <div className="flex size-11 items-center justify-center rounded-[18px] bg-slate-950 text-white shadow-[0_16px_32px_-18px_rgba(15,23,42,0.75)] dark:bg-slate-100 dark:text-slate-950">
               <TableProperties className="size-5" />
             </div>
 
             <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                 Archive Visual Modeller
               </p>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Add entities, drag them into place, and sketch relationships.
+                Shape entities, edit fields inline, and map structure visually.
               </p>
             </div>
 
             <Button
               onClick={addEntity}
-              className="h-10 rounded-xl px-4 shadow-sm"
+              className="h-11 rounded-[18px] px-4 shadow-[0_18px_36px_-22px_rgba(15,23,42,0.75)]"
               size="lg"
             >
               <Plus className="size-4" />
