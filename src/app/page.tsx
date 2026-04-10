@@ -3,11 +3,12 @@
 import "@xyflow/react/dist/style.css";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Trash2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   Background,
   BackgroundVariant,
   Controls,
+  MarkerType,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -21,6 +22,12 @@ import { Button } from "@/components/ui/button";
 import { EntityNode } from "@/components/EntityNode";
 import { useArkivStore } from "@/store/useArkivStore";
 import { useSchemaStore } from "@/store/useSchemaStore";
+
+const DEFAULT_EDGE_OPTIONS = {
+  type: 'smoothstep',
+  markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#ff7a45' },
+  style: { strokeWidth: 2.5 },
+}
 
 function SchemaCanvas() {
   const nodeTypes = useMemo(() => ({ entity: EntityNode }), []);
@@ -103,33 +110,39 @@ function SchemaCanvas() {
         </div>
       </div>
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={(_, node) => setActiveNode(node.id)}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.4}
-        maxZoom={1.5}
-        proOptions={{ hideAttribution: true }}
-        className="schema-flow pt-24"
+      <div
+        className="absolute inset-0 transition-all duration-300"
+        style={{ paddingLeft: isMenuOpen ? '416px' : '0px', paddingTop: '80px' }}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={26}
-          size={1.15}
-          color="rgba(148, 163, 184, 0.28)"
-        />
-        <Controls
-          showInteractive={false}
-          position="bottom-right"
-          className="!overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
-        />
-      </ReactFlow>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={(_, node) => setActiveNode(node.id)}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.4}
+          maxZoom={1.5}
+          proOptions={{ hideAttribution: true }}
+          className="schema-flow h-full w-full"
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={26}
+            size={1.15}
+            color="rgba(148, 163, 184, 0.28)"
+          />
+          <Controls
+            showInteractive={false}
+            position="bottom-right"
+            className="!overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
+          />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

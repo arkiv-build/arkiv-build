@@ -23,7 +23,7 @@ export function ArkivToolbar() {
               Visual Modeler
             </p>
             <p className="mt-1 text-sm text-gray-700">
-              Create, view, and deploy Arkiv schemas.
+              Create, view, edit and deploy Arkiv schemas.
             </p>
           </div>
         </div>

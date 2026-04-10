@@ -154,12 +154,40 @@
   }
 
   .schema-flow .react-flow__edge-path {
-    stroke: color-mix(in oklab, #38bdf8 62%, #94a3b8);
-    stroke-width: 2;
+    stroke: #ff7a45;
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 4px rgba(255, 122, 69, 0.55));
+    opacity: 0.92;
+  }
+
+  .schema-flow .react-flow__edge:hover .react-flow__edge-path {
+    stroke: #ff5722;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px rgba(255, 87, 34, 0.75));
+    opacity: 1;
+  }
+
+  .schema-flow .react-flow__edge.selected .react-flow__edge-path {
+    stroke: #ff5722;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px rgba(255, 87, 34, 0.75));
+    opacity: 1;
+  }
+
+  /* Animated flow dot */
+  .schema-flow .react-flow__edge-textwrapper {
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Make the SVG marker arrowheads inherit edge color */
+  .schema-flow .react-flow__arrowhead path {
+    fill: #ff7a45;
   }
 
   .schema-flow .react-flow__connection-path {
-    stroke: color-mix(in oklab, #38bdf8 75%, white);
+    stroke: #ff7a45;
     stroke-width: 2.5;
+    filter: drop-shadow(0 0 4px rgba(255, 122, 69, 0.5));
   }
 }
