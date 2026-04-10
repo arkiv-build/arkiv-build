@@ -36,7 +36,7 @@ export function TopNav() {
             </Link>
           </div>
           
-          {walletAvailable && (
+          {walletAvailable && account && (
             <div className="flex items-center">
               <span
                 className={[
