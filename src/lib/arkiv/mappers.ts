@@ -210,5 +210,7 @@ export const mapEntityToSnapshot = (
     systemAttributes,
     confirmedExpirationBlock: formatBlockNumber(entity.expiresAtBlock),
     expirationDuration: coerceDurationFromBlocks(entity.expiresAtBlock, blockTiming),
+    entityData: entity.toText(),
+    entitySize: entity.payload?.length ?? 0,
   };
 };

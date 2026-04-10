@@ -23,3 +23,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Keep interactive canvas code in Client Components using `"use client"` where required.
 - Prefer adding new visual modeler UI under `src/components/` and new shared state under `src/store/`.
 - Preserve the App Router structure under `src/app/` rather than adding legacy `pages/` routes.
+
+## Code style
+- TypeScript strict mode
+- Single quotes, no semicolons
+- Use functional patterns where possible
+- Prefer named exports over default exports

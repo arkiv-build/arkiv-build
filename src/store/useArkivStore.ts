@@ -9,6 +9,7 @@ import {
   fetchBlockTiming,
   fetchEntityDetails,
   fetchWalletOwnedEntities,
+  updatePersistedEntity,
 } from "@/lib/arkiv/entities";
 import type { BlockTimingState, OwnedArkivEntitySummary } from "@/lib/arkiv/types";
 import {
@@ -32,6 +33,7 @@ type ArkivState = {
   loadingSelectedEntity: boolean;
   connecting: boolean;
   deploying: boolean;
+  updating: boolean;
   error?: string;
   networkNudge?: string;
   initialize: () => Promise<void>;
@@ -41,6 +43,7 @@ type ArkivState = {
   refreshOwnedEntities: () => Promise<void>;
   loadEntityIntoCanvas: (entityKey: Hex) => Promise<void>;
   deployActiveDraft: () => Promise<void>;
+  updateActiveEntity: () => Promise<void>;
 };
 
 let unsubscribeWalletEvents: (() => void) | undefined;
@@ -53,6 +56,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
   loadingSelectedEntity: false,
   connecting: false,
   deploying: false,
+  updating: false,
   initialize: async () => {
     if (get().initialized) {
       return;
@@ -250,6 +254,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
         label: activeNode.data.label,
         fields: activeNode.data.fields,
         expirationDuration: activeNode.data.expirationDuration,
+        dataFields: activeNode.data.dataFields,
       });
 
       schemaStore.replaceNodeWithPersisted(activeNode.id, snapshot);
@@ -262,6 +267,79 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
       });
     } finally {
       set({ deploying: false });
+    }
+  },
+  updateActiveEntity: async () => {
+    const { account, blockTiming } = get();
+    const schemaStore = useSchemaStore.getState();
+    const activeNode = schemaStore.getActiveNode();
+
+    if (!account) {
+      set({
+        error: 'Connect MetaMask to Arkiv Kaolin before updating.',
+      });
+      return;
+    }
+
+    if (!activeNode || activeNode.data.mode !== 'persisted') {
+      set({
+        error: 'Select a deployed entity on the canvas before updating.',
+      });
+      return;
+    }
+
+    const entityKey = activeNode.data.entityKey;
+
+    if (!entityKey) {
+      set({ error: 'Entity key is missing — cannot update.' });
+      return;
+    }
+
+    // Extract the on-chain expiration block from the system attributes so we can
+    // preserve the existing TTL. The $expiration attribute is a formatted number
+    // string (e.g. "1,234,567") — strip commas before parsing.
+    const expirationAttr = activeNode.data.systemAttributes?.find(
+      (a) => a.name === '$expiration',
+    );
+    const expirationBlock = expirationAttr
+      ? BigInt(expirationAttr.value.replace(/,/g, ''))
+      : BigInt(0);
+
+    // Fall back to a fresh block timing fetch if store value is missing.
+    let currentBlock = blockTiming ? BigInt(blockTiming.currentBlock) : BigInt(0);
+    if (currentBlock === BigInt(0)) {
+      try {
+        const fresh = await fetchBlockTiming();
+        currentBlock = BigInt(fresh.currentBlock);
+        set({ blockTiming: fresh });
+      } catch {
+        // leave currentBlock as 0; remainingBlocks will clamp to 1
+      }
+    }
+
+    set({ updating: true, error: undefined });
+
+    try {
+      const { snapshot } = await updatePersistedEntity({
+        account,
+        entityKey,
+        label: activeNode.data.label,
+        fields: activeNode.data.fields,
+        entityData: activeNode.data.entityData,
+        currentBlock,
+        expirationBlock,
+      });
+
+      schemaStore.replaceNodeWithPersisted(activeNode.id, snapshot);
+      await get().refreshBlockTiming();
+      await get().refreshOwnedEntities();
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : 'Arkiv update transaction failed.',
+      });
+    } finally {
+      set({ updating: false });
     }
   },
 }));

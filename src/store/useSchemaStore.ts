@@ -16,6 +16,7 @@ import type { Hex } from "viem";
 
 import type {
   EntityField,
+  EntityDataField,
   EntityNodeMode,
   ExpirationDuration,
   IndexedAttributeType,
@@ -28,10 +29,13 @@ export type EntityNodeData = {
   label: string;
   expirationDuration: ExpirationDuration;
   fields: EntityField[];
+  dataFields: EntityDataField[];
   entityKey?: Hex;
   explorerUrl?: string;
   systemAttributes?: SystemAttribute[];
   confirmedExpirationBlock?: string;
+  entityData?: string;
+  entitySize?: number;
 };
 
 export type SchemaNode = Node<EntityNodeData, "entity">;
@@ -61,6 +65,7 @@ type SchemaState = {
     duration: ExpirationDuration,
   ) => void;
   addField: (nodeId: string) => void;
+  removeField: (nodeId: string, fieldId: string) => void;
   updateFieldName: (nodeId: string, fieldId: string, name: string) => void;
   updateFieldValue: (nodeId: string, fieldId: string, value: string) => void;
   updateFieldType: (
@@ -68,6 +73,12 @@ type SchemaState = {
     fieldId: string,
     type: IndexedAttributeType,
   ) => void;
+  addDataField: (nodeId: string) => void;
+  removeDataField: (nodeId: string, fieldId: string) => void;
+  updateDataFieldKey: (nodeId: string, fieldId: string, key: string) => void;
+  updateDataFieldValue: (nodeId: string, fieldId: string, value: string) => void;
+  updateEntityData: (nodeId: string, entityData: string) => void;
+  removeNode: (nodeId: string) => void;
 };
 
 const getEntityPosition = (index: number): XYPosition => {
@@ -87,6 +98,12 @@ const createEmptyField = (): EntityField => ({
   value: "",
 });
 
+const createEmptyDataField = (): EntityDataField => ({
+  id: `data-${crypto.randomUUID()}`,
+  key: "",
+  value: "",
+});
+
 const createDraftEntityNode = (index: number): SchemaNode => ({
   id: `entity-${crypto.randomUUID()}`,
   type: "entity",
@@ -96,6 +113,7 @@ const createDraftEntityNode = (index: number): SchemaNode => ({
     label: "",
     expirationDuration: "30d",
     fields: [createEmptyField()],
+    dataFields: [createEmptyDataField()],
   },
 });
 
@@ -119,10 +137,13 @@ const mapSnapshotToNodeData = (
   label: snapshot.label,
   expirationDuration: snapshot.expirationDuration,
   fields: snapshot.fields,
+  dataFields: [],
   entityKey: snapshot.entityKey,
   explorerUrl: snapshot.explorerUrl,
   systemAttributes: snapshot.systemAttributes,
   confirmedExpirationBlock: snapshot.confirmedExpirationBlock,
+  entityData: snapshot.entityData,
+  entitySize: snapshot.entitySize,
 });
 
 export const useSchemaStore = create<SchemaState>((set, get) => ({
@@ -253,6 +274,70 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
         },
       })),
     })),
+  removeField: (nodeId, fieldId) =>
+    set((state) => ({
+      nodes: updateNodeById(state.nodes, nodeId, (node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          fields: node.data.fields.filter((field) => field.id !== fieldId),
+        },
+      })),
+    })),
+  addDataField: (nodeId) =>
+    set((state) => ({
+      nodes: updateNodeById(state.nodes, nodeId, (node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          dataFields: [...(node.data.dataFields ?? []), createEmptyDataField()],
+        },
+      })),
+    })),
+  removeDataField: (nodeId, fieldId) =>
+    set((state) => ({
+      nodes: updateNodeById(state.nodes, nodeId, (node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          dataFields: (node.data.dataFields ?? []).filter((f) => f.id !== fieldId),
+        },
+      })),
+    })),
+  updateDataFieldKey: (nodeId, fieldId, key) =>
+    set((state) => ({
+      nodes: updateNodeById(state.nodes, nodeId, (node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          dataFields: (node.data.dataFields ?? []).map((f) =>
+            f.id === fieldId ? { ...f, key } : f,
+          ),
+        },
+      })),
+    })),
+  updateDataFieldValue: (nodeId, fieldId, value) =>
+    set((state) => ({
+      nodes: updateNodeById(state.nodes, nodeId, (node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          dataFields: (node.data.dataFields ?? []).map((f) =>
+            f.id === fieldId ? { ...f, value } : f,
+          ),
+        },
+      })),
+    })),
+  updateEntityData: (nodeId, entityData) =>
+    set((state) => ({
+      nodes: updateNodeById(state.nodes, nodeId, (node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          entityData,
+        },
+      })),
+    })),
   updateFieldName: (nodeId, fieldId, name) =>
     set((state) => ({
       nodes: updateNodeById(state.nodes, nodeId, (node) => ({
@@ -289,4 +374,18 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
         },
       })),
     })),
+  removeNode: (nodeId) =>
+    set((state) => {
+      const nodes = state.nodes.filter((node) => node.id !== nodeId);
+      return {
+        nodes,
+        edges: state.edges.filter(
+          (edge) => edge.source !== nodeId && edge.target !== nodeId,
+        ),
+        activeNodeId:
+          state.activeNodeId === nodeId
+            ? nodes[nodes.length - 1]?.id
+            : state.activeNodeId,
+      };
+    }),
 }));

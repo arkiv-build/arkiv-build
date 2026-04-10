@@ -16,6 +16,12 @@ export type EntityField = {
   value: string;
 };
 
+export type EntityDataField = {
+  id: string;
+  key: string;
+  value: string;
+};
+
 export type SystemAttribute = {
   name: "$key" | "$creator" | "$owner" | "$expiration" | "$createdAtBlock";
   value: string;
@@ -39,6 +45,8 @@ export type PersistedEntitySnapshot = {
   explorerUrl: string;
   systemAttributes: SystemAttribute[];
   confirmedExpirationBlock?: string;
+  entityData?: string;
+  entitySize?: number;
 };
 
 export type BlockTimingState = {
