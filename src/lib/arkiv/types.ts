@@ -1,6 +1,6 @@
 import type { Hex } from "viem";
 
-export const EXPIRATION_DURATION_OPTIONS = ["7d", "30d", "90d", "365d"] as const;
+export const EXPIRATION_DURATION_OPTIONS = ["1d", "7d", "30d", "90d", "365d"] as const;
 
 export const DESIGNER_APP_ID = "arkiv-visual-modeler";
 export const DESIGNER_PAYLOAD_VERSION = 1;

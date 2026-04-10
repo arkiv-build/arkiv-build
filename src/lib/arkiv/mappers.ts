@@ -14,6 +14,7 @@ import {
 } from "@/lib/arkiv/types";
 
 const durationDaysMap: Record<ExpirationDuration, number> = {
+  "1d": 1,
   "7d": 7,
   "30d": 30,
   "90d": 90,
@@ -163,7 +164,7 @@ const getEntityLabel = (
   }
 
   // 5. Fallback to entity key
-  return `Entity ${entity.key.slice(0, 10)}...`;
+  return `${entity.key.slice(0, 10)}...${entity.key.slice(-6)}`;
 };
 
 export const mapEntityToSummary = (entity: Entity): OwnedArkivEntitySummary => {

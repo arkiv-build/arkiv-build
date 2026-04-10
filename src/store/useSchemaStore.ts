@@ -209,7 +209,11 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
 
       if (!sourceNode || !targetNode) return { edges };
 
-      const sourceLabelRaw = sourceNode.data.label || "entity";
+      let sourceLabelRaw = sourceNode.data.label || "entity";
+      if (sourceLabelRaw.startsWith("0x") && sourceLabelRaw.includes("...")) {
+        sourceLabelRaw = "parent";
+      }
+
       const sourceLabel =
         sourceLabelRaw.charAt(0).toLowerCase() + sourceLabelRaw.slice(1);
 

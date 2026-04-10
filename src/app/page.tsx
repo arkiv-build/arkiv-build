@@ -11,6 +11,7 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 
 import { ArkivOwnedEntitiesPanel } from "@/components/ArkivOwnedEntitiesPanel";
@@ -32,6 +33,29 @@ function SchemaCanvas() {
   const clearCanvas = useSchemaStore((state) => state.clearCanvas);
   const initializeArkiv = useArkivStore((state) => state.initialize);
   const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const { setCenter, getNodes } = useReactFlow();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const allNodes = getNodes();
+      if (allNodes.length === 0) return;
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity;
+      allNodes.forEach((n) => {
+        const x = n.position.x;
+        const y = n.position.y;
+        const w = n.measured?.width || 544;
+
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + w);
+      });
+
+      const centerX = minX + (maxX - minX) / 2;
+      setCenter(centerX, minY, { zoom: 0.9, duration: 600 });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [nodes.length, setCenter, getNodes]);
 
   useEffect(() => {
     void initializeArkiv();

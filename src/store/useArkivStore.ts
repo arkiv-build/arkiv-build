@@ -255,7 +255,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
         const summary = ownedEntities.find((e) => e.key === currentKey);
         if (!summary) continue;
 
-        const upstreamKeys = (summary.fields ?? [])
+        const parentKeys = (summary.fields ?? [])
           .map((f) => f.value as Hex)
           .filter(
             (val) => val.startsWith("0x") && val.length === 66 && ownedEntities.some((e) => e.key === val)
@@ -265,7 +265,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
           .filter((e) => (e.fields ?? []).some((f) => f.value === currentKey))
           .map((e) => e.key);
 
-        for (const k of [...upstreamKeys, ...downstreamKeys]) {
+        for (const k of [...parentKeys, ...downstreamKeys]) {
           if (!connectedKeys.has(k)) queue.push(k);
         }
       }
@@ -274,15 +274,15 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
         Array.from(connectedKeys).map((key) => fetchEntityDetails(key, blockTiming))
       );
 
-      const nodesMap = new Map<Hex, { snapshot: any; upstream: Hex[]; level: number }>();
+      const nodesMap = new Map<Hex, { snapshot: any; parent: Hex[]; level: number }>();
       for (const snapshot of snapshots) {
-        const upstreamKeys = snapshot.fields
+        const parentKeys = snapshot.fields
           .map((f) => f.value as Hex)
           .filter((val) => connectedKeys.has(val));
 
         nodesMap.set(snapshot.entityKey, {
           snapshot,
-          upstream: upstreamKeys,
+          parent: parentKeys,
           level: 0,
         });
       }
@@ -292,12 +292,12 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
       while (changed && iterations < 100) {
         changed = false;
         for (const node of nodesMap.values()) {
-          const maxUpstreamLevel = node.upstream.length > 0
-            ? Math.max(...node.upstream.map((uk) => nodesMap.get(uk)!.level))
+          const maxParentLevel = node.parent.length > 0
+            ? Math.max(...node.parent.map((uk) => nodesMap.get(uk)!.level))
             : -1;
           
-          if (node.level !== maxUpstreamLevel + 1) {
-            node.level = maxUpstreamLevel + 1;
+          if (node.level !== maxParentLevel + 1) {
+            node.level = maxParentLevel + 1;
             changed = true;
           }
         }

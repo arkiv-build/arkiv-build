@@ -134,6 +134,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
   const isDraft = data.mode === 'draft'
 
   const getDurationLabel = (duration: string) => {
+    if (duration === '1d') return '1 day'
     if (duration === '7d') return '1 week'
     if (duration === '30d') return '4 weeks'
     if (duration === '90d') return '13 weeks'
@@ -149,7 +150,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
 
   const nodes = useSchemaStore((s) => s.nodes)
 
-  const pendingUpstreamNodes = useMemo(() => {
+  const pendingParentNodes = useMemo(() => {
     if (!isDraft) return []
     return data.fields
       .filter((f) => f.relationNodeId)
@@ -157,7 +158,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
       .filter((n) => n && n.data.mode === 'draft')
   }, [data.fields, isDraft, nodes])
 
-  const hasPendingUpstream = pendingUpstreamNodes.length > 0
+  const hasPendingParent = pendingParentNodes.length > 0
 
   return (
     <div className="relative w-[34rem]">
@@ -434,15 +435,15 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
             {isDraft ? (
               /* Draft: Deploy to Kaolin button */
               <div className="flex flex-col gap-3">
-                {hasPendingUpstream && (
+                {hasPendingParent && (
                   <div className="w-full rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-mono uppercase tracking-widest text-amber-700 text-center">
-                    Deploy upstream relations first
+                    Deploy parent relations first
                   </div>
                 )}
                 <Button
                   size="sm"
                   onClick={() => deployDraft(id)}
-                  disabled={!walletAvailable || !account || !isArkivKaolinChain(chainId) || deploying || hasPendingUpstream}
+                  disabled={!walletAvailable || !account || !isArkivKaolinChain(chainId) || deploying || hasPendingParent}
                   className="nodrag nopan h-14 w-full rounded-[14px] bg-[#1a1a1a] text-white font-mono tracking-widest uppercase text-xs hover:bg-[#333] transition-colors"
                 >
                   {deploying ? (
@@ -450,7 +451,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                       <Loader2 className="mr-3 size-4 animate-spin" />
                       Deploying…
                     </>
-                  ) : hasPendingUpstream ? (
+                  ) : hasPendingParent ? (
                     <>
                       <Rocket className="mr-3 size-4 opacity-50" />
                       Blocked
