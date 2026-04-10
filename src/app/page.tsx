@@ -57,7 +57,7 @@ function SchemaCanvas() {
           <Button
             variant="outline"
             onClick={clearCanvas}
-            className="flex h-10 items-center gap-2 rounded-xl border-gray-200 bg-white px-4 font-bold shadow-sm transition hover:bg-gray-50 text-gray-700"
+            className="flex h-10 items-center gap-2 rounded-xl border-red-200 bg-red-50 px-4 font-bold shadow-sm transition hover:bg-red-100 text-[#ff3b30] hover:text-red-600"
           >
             <Trash2 className="size-4" />
             Clear Canvas

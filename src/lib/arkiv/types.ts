@@ -38,6 +38,7 @@ export type OwnedArkivEntitySummary = {
   contentType?: string;
   createdAtBlock?: string;
   unsupportedReason?: string;
+  fields?: EntityField[];
 };
 
 export type PersistedEntitySnapshot = {

@@ -153,6 +153,17 @@ export const mapEntityToSummary = (entity: Entity): OwnedArkivEntitySummary => {
   const compatible =
     payloadLooksLikeDesignerPayload(payload) || entity.attributes.length > 0 || Boolean(payload);
 
+  const fields = payloadLooksLikeDesignerPayload(payload)
+    ? payload.fields.map(
+        (field): EntityField => ({
+          id: `${field.name}-${crypto.randomUUID()}`,
+          name: field.name,
+          type: field.type,
+          value: String(field.value),
+        }),
+      )
+    : mapGenericAttributesToFields(entity);
+
   return {
     key: entity.key,
     label: getEntityLabel(entity, payload),
@@ -169,6 +180,7 @@ export const mapEntityToSummary = (entity: Entity): OwnedArkivEntitySummary => {
     unsupportedReason: compatible
       ? undefined
       : "This entity has no JSON payload or indexed attributes the designer can render.",
+    fields,
   };
 };
 

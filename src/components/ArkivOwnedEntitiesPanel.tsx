@@ -78,16 +78,16 @@ export function ArkivOwnedEntitiesPanel() {
                   <p className="mt-1 text-xs text-gray-600">
                     {entity.preview}
                   </p>
-                  <p className="mt-1 font-mono text-[11px] text-gray-500">
+                  <p className="mt-1 font-mono text-[12px] text-gray-500">
                     {shortKey(entity.key)}
                   </p>
                   {entity.createdAtBlock ? (
-                    <p className="mt-1 text-[11px] text-gray-400">
+                    <p className="mt-1 text-[12px] text-gray-400">
                       Created at block {entity.createdAtBlock}
                     </p>
                   ) : null}
                   {entity.unsupportedReason ? (
-                    <p className="mt-1 text-[11px] text-rose-600">
+                    <p className="mt-1 text-[12px] text-rose-600">
                       {entity.unsupportedReason}
                     </p>
                   ) : null}

@@ -20,7 +20,12 @@ import {
   hasMetaMask,
   subscribeWalletEvents,
 } from "@/lib/arkiv/wallet";
-import { useSchemaStore } from "@/store/useSchemaStore";
+import {
+  useSchemaStore,
+  mapSnapshotToNodeData,
+  type SchemaNode,
+  type SchemaEdge,
+} from "@/store/useSchemaStore";
 
 type ArkivState = {
   initialized: boolean;
@@ -218,8 +223,129 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
     set({ loadingSelectedEntity: true, error: undefined });
 
     try {
-      const snapshot = await fetchEntityDetails(entityKey, get().blockTiming);
-      useSchemaStore.getState().openPersistedEntity(snapshot);
+      const { ownedEntities, blockTiming } = get();
+
+      const connectedKeys = new Set<Hex>();
+      const queue = [entityKey];
+
+      while (queue.length > 0) {
+        const currentKey = queue.shift()!;
+        if (connectedKeys.has(currentKey)) continue;
+
+        connectedKeys.add(currentKey);
+
+        const summary = ownedEntities.find((e) => e.key === currentKey);
+        if (!summary) continue;
+
+        const upstreamKeys = (summary.fields ?? [])
+          .map((f) => f.value as Hex)
+          .filter(
+            (val) => val.startsWith("0x") && val.length === 66 && ownedEntities.some((e) => e.key === val)
+          );
+
+        const downstreamKeys = ownedEntities
+          .filter((e) => (e.fields ?? []).some((f) => f.value === currentKey))
+          .map((e) => e.key);
+
+        for (const k of [...upstreamKeys, ...downstreamKeys]) {
+          if (!connectedKeys.has(k)) queue.push(k);
+        }
+      }
+
+      const snapshots = await Promise.all(
+        Array.from(connectedKeys).map((key) => fetchEntityDetails(key, blockTiming))
+      );
+
+      const nodesMap = new Map<Hex, { snapshot: any; upstream: Hex[]; level: number }>();
+      for (const snapshot of snapshots) {
+        const upstreamKeys = snapshot.fields
+          .map((f) => f.value as Hex)
+          .filter((val) => connectedKeys.has(val));
+
+        nodesMap.set(snapshot.entityKey, {
+          snapshot,
+          upstream: upstreamKeys,
+          level: 0,
+        });
+      }
+
+      let changed = true;
+      let iterations = 0;
+      while (changed && iterations < 100) {
+        changed = false;
+        for (const node of nodesMap.values()) {
+          const maxUpstreamLevel = node.upstream.length > 0
+            ? Math.max(...node.upstream.map((uk) => nodesMap.get(uk)!.level))
+            : -1;
+          
+          if (node.level !== maxUpstreamLevel + 1) {
+            node.level = maxUpstreamLevel + 1;
+            changed = true;
+          }
+        }
+        iterations++;
+      }
+
+      const levelGroups = new Map<number, Hex[]>();
+      for (const [key, node] of nodesMap.entries()) {
+        const lvl = node.level;
+        if (!levelGroups.has(lvl)) levelGroups.set(lvl, []);
+        levelGroups.get(lvl)!.push(key);
+      }
+
+      const nodes: SchemaNode[] = [];
+      const edges: SchemaEdge[] = [];
+
+      for (const [lvl, keys] of levelGroups.entries()) {
+        keys.forEach((key, index) => {
+          const nodeInfo = nodesMap.get(key)!;
+          const nodeId = `entity-${key}`;
+          
+          const x = 96 + lvl * 600;
+          const y = 140 + index * 300;
+
+          const mappedData = mapSnapshotToNodeData(nodeInfo.snapshot);
+          
+          nodes.push({
+            id: nodeId,
+            type: "entity",
+            position: { x, y },
+            data: mappedData,
+            selected: key === entityKey,
+          });
+        });
+      }
+
+      for (const node of nodesMap.values()) {
+        const targetId = `entity-${node.snapshot.entityKey}`;
+        
+        for (const field of node.snapshot.fields) {
+          if (nodesMap.has(field.value as Hex)) {
+            const sourceId = `entity-${field.value}`;
+            const edgeId = `xy-edge__${sourceId}-null-${targetId}-null`;
+            
+            field.edgeId = edgeId;
+            field.relationNodeId = sourceId;
+
+            edges.push({
+              id: edgeId,
+              source: sourceId,
+              target: targetId,
+              sourceHandle: undefined,
+              targetHandle: undefined,
+              animated: true,
+            });
+          }
+        }
+      }
+
+      for (const node of nodes) {
+        const fullSn = nodesMap.get(node.id.replace('entity-', '') as Exclude<Hex, string> | Hex)!.snapshot;
+        node.data.fields = fullSn.fields;
+      }
+
+      useSchemaStore.getState().loadGraphOfEntities(nodes, edges);
+
     } catch (error) {
       set({
         error:

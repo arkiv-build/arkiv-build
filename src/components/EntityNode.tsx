@@ -73,7 +73,7 @@ function EntityDataEditor({
 
           return (
             <div key={key}>
-              <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+              <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                 {key}
               </p>
               <input
@@ -131,11 +131,15 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
 
   const [updateSuccess, setUpdateSuccess] = useState(false)
 
-  const estimatedExpirationBlock = estimateExpirationBlock(data.expirationDuration, blockTiming)
   const isDraft = data.mode === 'draft'
-  const expirationBlockLabel = isDraft
-    ? formatBlockNumber(estimatedExpirationBlock)
-    : data.confirmedExpirationBlock
+
+  const getDurationLabel = (duration: string) => {
+    if (duration === '7d') return '1 week'
+    if (duration === '30d') return '4 weeks'
+    if (duration === '90d') return '13 weeks'
+    if (duration === '365d') return '52 weeks'
+    return duration
+  }
 
   const handleUpdate = async () => {
     await updateActiveEntity()
@@ -199,13 +203,13 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                   >
                     {EXPIRATION_DURATION_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        EXP: {option}
+                        EXP: {getDurationLabel(option)}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <span className="text-sm font-mono text-gray-500 underline underline-offset-4 decoration-gray-300">
-                    EXP: {expirationBlockLabel}
+                    EXP: {getDurationLabel(data.expirationDuration)}
                   </span>
                 )}
               </div>
@@ -227,7 +231,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
           {/* ---- Indexed Attributes ---- */}
           <div className="space-y-4">
             <div className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-3">
-              <p className="mb-2 text-[11px] font-mono lowercase tracking-widest text-[#ff7a45] w-full col-span-4 border-b border-gray-100 pb-2">
+              <p className="mb-2 text-[13px] font-mono font-bold lowercase tracking-widest text-[#ff7a45] w-full col-span-4 border-b border-gray-100 pb-2">
                 INDEXED ATTRIBUTES
               </p>
             </div>
@@ -238,7 +242,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
               return (
                 <div key={field.id} className="grid grid-cols-[clamp(100px,1fr,150px)_1fr_auto_auto] items-end gap-3 pb-2">
                   <div>
-                    <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+                    <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                       Field Name
                     </p>
                     <div className="relative">
@@ -257,7 +261,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+                    <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                       Initial Value
                     </p>
                     <input
@@ -277,7 +281,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+                    <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                       Type
                     </p>
                     <select
@@ -308,7 +312,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
               size="sm"
               onClick={() => addField(id)}
               variant="outline"
-              className="nodrag nopan h-12 w-full rounded-[14px] border border-dashed border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-white hover:text-gray-900 shadow-none font-mono tracking-widest uppercase text-[11px] bg-transparent"
+              className="nodrag nopan h-12 w-full rounded-[14px] border border-dashed border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-white hover:text-gray-900 shadow-none font-mono tracking-widest uppercase text-[12px] bg-transparent"
             >
               <Plus className="mr-2 size-3.5" />
               Add Attribute
@@ -319,7 +323,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
           {isDraft ? (
             <div className="space-y-4">
               <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
-                <p className="mb-2 text-[11px] font-mono lowercase tracking-widest text-[#ff7a45] col-span-3 border-b border-gray-100 pb-2">
+                <p className="mb-2 text-[13px] font-mono font-bold lowercase tracking-widest text-[#ff7a45] col-span-3 border-b border-gray-100 pb-2">
                   DATA FIELDS
                 </p>
               </div>
@@ -328,7 +332,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                 {(data.dataFields ?? []).map((df) => (
                   <div key={df.id} className="grid grid-cols-[clamp(100px,1fr,150px)_1fr_auto] items-end gap-3">
                     <div>
-                      <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+                      <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                         Key
                       </p>
                       <input
@@ -339,7 +343,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                       />
                     </div>
                     <div>
-                      <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+                      <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                         Value
                       </p>
                       <input
@@ -364,7 +368,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                 size="sm"
                 onClick={() => addDataField(id)}
                 variant="outline"
-                className="nodrag nopan h-12 w-full rounded-[14px] border border-dashed border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-white hover:text-gray-900 shadow-none font-mono tracking-widest uppercase text-[11px] bg-transparent"
+                className="nodrag nopan h-12 w-full rounded-[14px] border border-dashed border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-white hover:text-gray-900 shadow-none font-mono tracking-widest uppercase text-[12px] bg-transparent"
               >
                 <Plus className="mr-2 size-3.5" />
                 Add Data Field
@@ -373,10 +377,10 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
           ) : data.entityData ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <p className="text-[11px] font-mono lowercase tracking-widest text-[#ff7a45]">
+                <p className="text-[13px] font-mono font-bold lowercase tracking-widest text-[#ff7a45]">
                   ENTITY DATA
                 </p>
-                <p className="text-[11px] font-mono text-gray-400">
+                <p className="text-[13px] font-mono text-gray-400">
                   {data.entitySize} BYTES
                 </p>
               </div>
@@ -388,7 +392,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
           {!isDraft && data.systemAttributes ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <p className="text-[11px] font-mono lowercase tracking-widest text-[#ff7a45]">
+                <p className="text-[13px] font-mono font-bold lowercase tracking-widest text-[#ff7a45]">
                   SYSTEM ATTRIBUTES
                 </p>
                 {data.explorerUrl ? (
@@ -396,7 +400,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                     href={data.explorerUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-[#ff7a45] transition hover:text-[#ff692a]"
+                    className="inline-flex items-center gap-1.5 text-[13px] font-mono font-bold uppercase tracking-widest text-[#ff7a45] transition hover:text-[#ff692a]"
                   >
                     Explorer
                     <ExternalLink className="size-3" />
@@ -407,7 +411,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
               <div className="space-y-4">
                 {data.systemAttributes.map((attribute) => (
                   <div key={attribute.name}>
-                    <p className="mb-2 text-[11px] font-mono uppercase tracking-widest text-gray-400">
+                    <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                       {attribute.name}
                     </p>
                     <div className="nodrag nopan w-full rounded-[14px] border border-gray-100 bg-gray-50/50 p-4 font-mono text-sm text-gray-900 break-all">

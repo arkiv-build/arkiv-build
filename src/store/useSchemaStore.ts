@@ -82,6 +82,7 @@ type SchemaState = {
   updateEntityData: (nodeId: string, entityData: string) => void;
   setDeployFailed: (nodeId: string, failed: boolean) => void;
   removeNode: (nodeId: string) => void;
+  loadGraphOfEntities: (nodes: SchemaNode[], edges: SchemaEdge[]) => void;
 };
 
 const getEntityPosition = (index: number): XYPosition => {
@@ -133,7 +134,7 @@ const markSelectedNode = (nodes: SchemaNode[], nodeId: string) =>
     selected: node.id === nodeId,
   }));
 
-const mapSnapshotToNodeData = (
+export const mapSnapshotToNodeData = (
   snapshot: PersistedEntitySnapshot & { expirationDuration: ExpirationDuration },
 ): EntityNodeData => ({
   mode: "persisted",
@@ -504,4 +505,10 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
         },
       })),
     })),
+  loadGraphOfEntities: (nodes, edges) =>
+    set({
+      nodes,
+      edges,
+      activeNodeId: nodes.find((n) => n.selected)?.id ?? nodes[0]?.id,
+    }),
 }));
