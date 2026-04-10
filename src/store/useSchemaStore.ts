@@ -50,6 +50,7 @@ type SchemaState = {
   onConnect: (connection: Connection) => void;
   addDraftEntity: () => void;
   resetToSingleDraft: () => void;
+  clearCanvas: () => void;
   setActiveNode: (nodeId: string) => void;
   getActiveNode: () => SchemaNode | undefined;
   openPersistedEntity: (snapshot: PersistedEntitySnapshot & {
@@ -205,20 +206,20 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
 
       if (!sourceNode || !targetNode) return { edges };
 
-      const targetLabelRaw = targetNode.data.label || "entity";
-      const targetLabel =
-        targetLabelRaw.charAt(0).toLowerCase() + targetLabelRaw.slice(1);
+      const sourceLabelRaw = sourceNode.data.label || "entity";
+      const sourceLabel =
+        sourceLabelRaw.charAt(0).toLowerCase() + sourceLabelRaw.slice(1);
 
       const newField: EntityField = {
         id: `field-${crypto.randomUUID()}`,
-        name: `${targetLabel}Id`,
+        name: `${sourceLabel}Id`,
         type: "indexedString",
-        value: targetNode.data.entityKey || "",
+        value: sourceNode.data.entityKey || "",
         edgeId: newEdge.id,
-        relationNodeId: targetNode.id,
+        relationNodeId: sourceNode.id,
       };
 
-      const nodes = updateNodeById(state.nodes, sourceNode.id, (node) => ({
+      const nodes = updateNodeById(state.nodes, targetNode.id, (node) => ({
         ...node,
         data: {
           ...node.data,
@@ -244,6 +245,13 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       nodes: [nextNode],
       edges: [],
       activeNodeId: nextNode.id,
+    });
+  },
+  clearCanvas: () => {
+    set({
+      nodes: [],
+      edges: [],
+      activeNodeId: undefined,
     });
   },
   setActiveNode: (nodeId) =>

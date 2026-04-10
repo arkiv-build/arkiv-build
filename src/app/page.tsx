@@ -3,6 +3,7 @@
 import "@xyflow/react/dist/style.css";
 
 import { useEffect } from "react";
+import { Trash2 } from "lucide-react";
 import {
   Background,
   BackgroundVariant,
@@ -14,6 +15,7 @@ import {
 
 import { ArkivOwnedEntitiesPanel } from "@/components/ArkivOwnedEntitiesPanel";
 import { ArkivToolbar } from "@/components/ArkivToolbar";
+import { Button } from "@/components/ui/button";
 import { EntityNode } from "@/components/EntityNode";
 import { useArkivStore } from "@/store/useArkivStore";
 import { useSchemaStore } from "@/store/useSchemaStore";
@@ -29,6 +31,7 @@ function SchemaCanvas() {
   const onEdgesChange = useSchemaStore((state) => state.onEdgesChange);
   const onConnect = useSchemaStore((state) => state.onConnect);
   const setActiveNode = useSchemaStore((state) => state.setActiveNode);
+  const clearCanvas = useSchemaStore((state) => state.clearCanvas);
   const initializeArkiv = useArkivStore((state) => state.initialize);
 
   useEffect(() => {
@@ -70,6 +73,17 @@ function SchemaCanvas() {
             <ArkivToolbar />
             <ArkivOwnedEntitiesPanel />
           </div>
+        </Panel>
+
+        <Panel position="top-right" className="m-6">
+          <Button
+            variant="outline"
+            onClick={clearCanvas}
+            className="flex h-11 items-center gap-2 rounded-[18px] border-white/70 bg-white/75 px-4 shadow-[0_20px_45px_-28px_rgba(15,23,42,0.4)] backdrop-blur-xl transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-slate-800/80 dark:bg-slate-950/80 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+          >
+            <Trash2 className="size-4" />
+            Clear Canvas
+          </Button>
         </Panel>
       </ReactFlow>
     </div>

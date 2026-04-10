@@ -20,6 +20,13 @@ const inputClassName =
 const selectClassName =
   'nodrag nopan h-10 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 text-sm font-medium text-slate-700 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_10px_30px_rgba(148,163,184,0.08)] outline-none transition duration-200 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-500/10 disabled:cursor-not-allowed disabled:opacity-80 dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:bg-slate-900 dark:focus:ring-sky-400/10'
 
+const sanitizeIdentifier = (val: string) => {
+  return val
+    .replace(/\s+/g, '_')            // Replace spaces with underscores
+    .replace(/^[^\p{L}_]+/u, '')     // Remove invalid starting characters
+    .replace(/[^\p{L}\p{N}_]/gu, '') // Remove invalid subsequent characters
+}
+
 // ---------------------------------------------------------------------------
 // EntityDataEditor – renders JSON as friendly key/value rows, falls back to a
 // plain textarea for non-JSON payloads.
@@ -139,6 +146,18 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
     setTimeout(() => setUpdateSuccess(false), 3000)
   }
 
+  const nodes = useSchemaStore((s) => s.nodes)
+
+  const pendingUpstreamNodes = useMemo(() => {
+    if (!isDraft) return []
+    return data.fields
+      .filter((f) => f.relationNodeId)
+      .map((f) => nodes.find((n) => n.id === f.relationNodeId))
+      .filter((n) => n && n.data.mode === 'draft')
+  }, [data.fields, isDraft, nodes])
+
+  const hasPendingUpstream = pendingUpstreamNodes.length > 0
+
   return (
     <div className="relative min-w-[31rem]">
       <Handle
@@ -206,7 +225,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
           <div className="min-w-0 flex-1 space-y-2">
             <input
               value={data.label}
-              onChange={(e) => updateEntityName(id, e.target.value)}
+              onChange={(e) => updateEntityName(id, sanitizeIdentifier(e.target.value))}
               className={`${inputClassName} h-11 border-white/90 bg-white/88 text-lg font-semibold tracking-[-0.02em] shadow-[0_1px_1px_rgba(15,23,42,0.04),0_12px_32px_rgba(148,163,184,0.12)]`}
               placeholder="Entity name"
               disabled={!isDraft}
@@ -271,7 +290,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                     )}
                     <input
                       value={field.name}
-                      onChange={(e) => updateFieldName(id, field.id, e.target.value)}
+                      onChange={(e) => updateFieldName(id, field.id, sanitizeIdentifier(e.target.value))}
                       className={`${inputClassName} h-10 min-w-0 border-transparent bg-transparent px-1 shadow-none dark:bg-transparent ${isRelation ? 'font-medium text-indigo-700 dark:text-indigo-300' : ''}`}
                       placeholder="e.g. name"
                     />
@@ -365,7 +384,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                   >
                     <input
                       value={df.key}
-                      onChange={(e) => updateDataFieldKey(id, df.id, e.target.value)}
+                      onChange={(e) => updateDataFieldKey(id, df.id, sanitizeIdentifier(e.target.value))}
                       className={`${inputClassName} h-10 min-w-0`}
                       placeholder="e.g. bio"
                     />
@@ -456,24 +475,36 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
           {/* ---- Actions ---- */}
           {isDraft ? (
             /* Draft: Deploy to Kaolin button */
-            <Button
-              size="sm"
-              onClick={() => deployDraft(id)}
-              disabled={!walletAvailable || !account || !isArkivKaolinChain(chainId) || deploying}
-              className="nodrag nopan h-11 w-full rounded-[22px] border border-transparent bg-slate-950 text-white shadow-[0_18px_40px_-22px_rgba(15,23,42,0.7)] transition duration-200 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
-            >
-              {deploying ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Deploying…
-                </>
-              ) : (
-                <>
-                  <Rocket className="mr-2 size-4" />
-                  Deploy to Kaolin
-                </>
+            <div className="space-y-2">
+              {hasPendingUpstream && (
+                <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400 text-center">
+                  Deploy upstream relations first
+                </div>
               )}
-            </Button>
+              <Button
+                size="sm"
+                onClick={() => deployDraft(id)}
+                disabled={!walletAvailable || !account || !isArkivKaolinChain(chainId) || deploying || hasPendingUpstream}
+                className="nodrag nopan h-11 w-full rounded-[22px] border border-transparent bg-slate-950 text-white shadow-[0_18px_40px_-22px_rgba(15,23,42,0.7)] transition duration-200 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
+              >
+                {deploying ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Deploying…
+                  </>
+                ) : hasPendingUpstream ? (
+                  <>
+                    <Rocket className="mr-2 size-4 opacity-50" />
+                    Blocked by Upstream
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="mr-2 size-4" />
+                    Deploy to Kaolin
+                  </>
+                )}
+              </Button>
+            </div>
           ) : (
             /* Persisted: Update Entity button */
             <Button
