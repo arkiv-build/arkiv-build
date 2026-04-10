@@ -15,6 +15,7 @@ import type { BlockTimingState, OwnedArkivEntitySummary } from "@/lib/arkiv/type
 import {
   connectMetaMask,
   ensureArkivNetworkReady,
+  getAccountBalance,
   getAuthorizedAccount,
   getInjectedChainId,
   hasMetaMask,
@@ -32,6 +33,7 @@ type ArkivState = {
   walletAvailable: boolean;
   account?: Hex;
   chainId?: number;
+  balance?: string;
   blockTiming?: BlockTimingState;
   ownedEntities: OwnedArkivEntitySummary[];
   loadingOwnedEntities: boolean;
@@ -45,6 +47,7 @@ type ArkivState = {
   connectWallet: () => Promise<void>;
   retryNetworkSwitch: () => Promise<void>;
   refreshBlockTiming: () => Promise<void>;
+  refreshBalance: () => Promise<void>;
   refreshOwnedEntities: () => Promise<void>;
   loadEntityIntoCanvas: (entityKey: Hex) => Promise<void>;
   deployActiveDraft: () => Promise<void>;
@@ -58,6 +61,7 @@ let unsubscribeWalletEvents: (() => void) | undefined;
 export const useArkivStore = create<ArkivState>((set, get) => ({
   initialized: false,
   walletAvailable: false,
+  balance: undefined,
   ownedEntities: [],
   loadingOwnedEntities: false,
   loadingSelectedEntity: false,
@@ -104,6 +108,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
         set({ account });
 
         if (account && isArkivKaolinChain(await getInjectedChainId())) {
+          await get().refreshBalance();
           await get().refreshOwnedEntities();
         } else {
           set({ ownedEntities: [] });
@@ -124,6 +129,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
           await get().refreshBlockTiming();
 
           if (get().account) {
+            await get().refreshBalance();
             await get().refreshOwnedEntities();
           }
         }
@@ -134,6 +140,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
     set({ account });
 
     if (account && isArkivKaolinChain(chainId)) {
+      await get().refreshBalance();
       await get().refreshOwnedEntities();
     }
   },
@@ -154,6 +161,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
       });
 
       await get().refreshBlockTiming();
+      await get().refreshBalance();
       await get().refreshOwnedEntities();
     } catch (error) {
       set({
@@ -180,6 +188,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
       await get().refreshBlockTiming();
 
       if (get().account) {
+        await get().refreshBalance();
         await get().refreshOwnedEntities();
       }
     } catch (error) {
@@ -194,6 +203,15 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
   refreshBlockTiming: async () => {
     const blockTiming = await fetchBlockTiming();
     set({ blockTiming });
+  },
+  refreshBalance: async () => {
+    const { account } = get();
+    if (!account) {
+      set({ balance: undefined });
+      return;
+    }
+    const balance = await getAccountBalance(account);
+    set({ balance });
   },
   refreshOwnedEntities: async () => {
     const { account } = get();
@@ -519,6 +537,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
   disconnectWallet: () => {
     set({
       account: undefined,
+      balance: undefined,
       ownedEntities: [],
     });
     useSchemaStore.getState().resetToSingleDraft();

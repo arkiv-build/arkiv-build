@@ -2,7 +2,7 @@
 
 import "viem/window";
 
-import type { Hex } from "viem";
+import { formatEther, type Hex } from "viem";
 
 import { ARKIV_CHAIN, ARKIV_CHAIN_HEX, isArkivKaolinChain } from "@/lib/arkiv/chain";
 
@@ -43,6 +43,22 @@ export const getAuthorizedAccount = async () => {
   }
 
   return accounts[0] as Hex;
+};
+
+export const getAccountBalance = async (account: Hex) => {
+  if (!window.ethereum) return "0";
+  try {
+    const balanceHex = await window.ethereum.request({
+      method: "eth_getBalance",
+      params: [account, "latest"],
+    });
+    if (typeof balanceHex === "string") {
+      return formatEther(BigInt(balanceHex));
+    }
+  } catch (error) {
+    console.error("Failed to fetch balance", error);
+  }
+  return "0";
 };
 
 export const switchToArkivKaolin = async () => {

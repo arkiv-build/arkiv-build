@@ -128,6 +128,11 @@ export const updatePersistedEntity = async ({
     value: toAttributeValue(field),
   }));
 
+  attributes.push({
+    key: "type",
+    value: label.trim(),
+  });
+
   // RLP requires a canonical (non-zero, no leading-zero) uint64 for BTL.
   // We preserve the entity's existing expiry by passing the remaining blocks.
   // Clamp to 1 so we never encode 0.
@@ -210,6 +215,11 @@ export const deployEntityFromDraft = async ({
     key: field.name.trim(),
     value: toAttributeValue(field),
   }))
+
+  attributes.push({
+    key: "type",
+    value: trimmedLabel,
+  })
 
   const { entityKey, txHash } = await walletClient.createEntity({
     payload: payloadBytes,

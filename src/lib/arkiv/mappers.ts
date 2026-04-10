@@ -117,34 +117,52 @@ const getEntityLabel = (
   entity: Entity,
   payload: DesignerPayload | Record<string, unknown> | null,
 ) => {
+  // 1. Prioritize 'type' from attributes
+  const typeAttribute = entity.attributes.find((attribute) => attribute.key === "type");
+  if (typeof typeAttribute?.value === "string" && typeAttribute.value.trim().length > 0) {
+    return typeAttribute.value.trim();
+  }
+
+  // 2. Check 'type' in payload
+  if (
+    payload &&
+    "type" in payload &&
+    typeof payload.type === "string" &&
+    payload.type.trim().length > 0
+  ) {
+    return payload.type.trim();
+  }
+
+  // 3. Fallback to 'name' (or 'entityName') in payload
   if (payloadLooksLikeDesignerPayload(payload) && payload.entityName) {
-    return payload.entityName;
+    return payload.entityName.trim();
   }
 
   if (
     payload &&
     "entityName" in payload &&
     typeof payload.entityName === "string" &&
-    payload.entityName.length > 0
+    payload.entityName.trim().length > 0
   ) {
-    return payload.entityName;
+    return payload.entityName.trim();
   }
 
   if (
     payload &&
     "name" in payload &&
     typeof payload.name === "string" &&
-    payload.name.length > 0
+    payload.name.trim().length > 0
   ) {
-    return payload.name;
+    return payload.name.trim();
   }
 
-  const typeAttribute = entity.attributes.find((attribute) => attribute.key === "type");
-
-  if (typeof typeAttribute?.value === "string" && typeAttribute.value.length > 0) {
-    return typeAttribute.value;
+  // 4. Check 'name' in attributes
+  const nameAttribute = entity.attributes.find((attribute) => attribute.key === "name");
+  if (typeof nameAttribute?.value === "string" && nameAttribute.value.trim().length > 0) {
+    return nameAttribute.value.trim();
   }
 
+  // 5. Fallback to entity key
   return `Entity ${entity.key.slice(0, 10)}...`;
 };
 

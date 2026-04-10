@@ -186,7 +186,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                 value={data.label}
                 onChange={(e) => updateEntityName(id, sanitizeIdentifier(e.target.value))}
                 className="nodrag nopan h-10 w-full min-w-0 border-transparent bg-transparent text-[22px] font-bold uppercase tracking-wider text-gray-900 outline-none placeholder:text-gray-300"
-                placeholder={isDraft ? "DRAFT ENTITY" : "DEPLOYED ENTITY"}
+                placeholder="ENTITY TYPE"
                 disabled={!isDraft}
               />
             </div>

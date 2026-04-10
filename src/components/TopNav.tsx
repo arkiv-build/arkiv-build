@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { LoaderCircle, Wallet } from "lucide-react";
+import { LoaderCircle, Wallet, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useArkivStore } from "@/store/useArkivStore";
 import { ARKIV_CHAIN } from "@/lib/arkiv/chain";
@@ -17,6 +18,16 @@ export function TopNav() {
   const account = useArkivStore((state) => state.account);
   const chainId = useArkivStore((state) => state.chainId);
   const walletAvailable = useArkivStore((state) => state.walletAvailable);
+  const balance = useArkivStore((state) => state.balance);
+  const [copied, setCopied] = useState(false);
+
+  const copyAddress = () => {
+    if (account) {
+      navigator.clipboard.writeText(account);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const onArkivNetwork = chainId === ARKIV_CHAIN.id;
 
@@ -30,7 +41,15 @@ export function TopNav() {
 
         {/* Actions */}
         <div className="flex items-center gap-6">
-          <div className="hidden md:flex items-center mr-2 font-mono text-xs font-semibold tracking-wide text-gray-700">
+          <div className="hidden md:flex items-center gap-4 mr-4 font-mono text-xs font-semibold tracking-wide text-gray-700">
+            <Link 
+              href="https://kaolin.hoodi.arkiv.network/faucet/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center h-8 rounded-lg bg-orange-500 text-white px-3 shadow-sm hover:bg-orange-600 transition-colors"
+            >
+              Faucet
+            </Link>
             <Link href="https://arkiv.network/dev" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">
               Docs
             </Link>
@@ -62,18 +81,37 @@ export function TopNav() {
             </div>
           )}
 
-          <Button
-            onClick={account ? disconnectWallet : connectWallet}
-            className="h-10 rounded-xl bg-[#1f1f1f] hover:bg-black font-semibold text-white px-4 transition-colors"
-            disabled={connecting}
-          >
-            {connecting ? (
-              <LoaderCircle className="size-4 animate-spin mr-2" />
-            ) : (
-              <Wallet className="size-4 mr-2" />
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={account ? disconnectWallet : connectWallet}
+              className="h-10 rounded-xl bg-[#1f1f1f] hover:bg-black font-semibold text-white px-4 transition-colors"
+              disabled={connecting}
+            >
+              {connecting ? (
+                <LoaderCircle className="size-4 animate-spin mr-2" />
+              ) : (
+                <Wallet className="size-4 mr-2" />
+              )}
+              {account ? shortAddress(account) : "Connect MetaMask"}
+            </Button>
+            
+            {account && (
+               <>
+                 <div className="flex items-center h-10 px-4 rounded-xl border border-gray-200 bg-white shadow-sm font-mono text-sm font-semibold text-gray-700">
+                    {balance ? `${Number(balance).toFixed(4)} KAO` : "Loading..."}
+                 </div>
+                 <Button
+                   variant="outline"
+                   size="icon"
+                   onClick={copyAddress}
+                   className="h-10 w-10 rounded-xl border-gray-200 shadow-sm bg-white"
+                   title="Copy Address"
+                 >
+                   {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4 text-gray-600" />}
+                 </Button>
+               </>
             )}
-            {account ? shortAddress(account) : "Connect MetaMask"}
-          </Button>
+          </div>
         </div>
       </nav>
     </div>
