@@ -1,25 +1,19 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Database, Plus } from "lucide-react";
+import { Database, ExternalLink, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  EXPIRATION_DURATION_OPTIONS,
-  formatBlockNumber,
-  getArkivSystemAttributes,
-  getExpirationBlock,
-  type ExpirationDuration,
-  useSchemaStore,
-  type IndexedAttributeType,
-  type SchemaNode,
-} from "@/store/useSchemaStore";
+import { estimateExpirationBlock, formatBlockNumber } from "@/lib/arkiv/mappers";
+import { EXPIRATION_DURATION_OPTIONS, type ExpirationDuration, type IndexedAttributeType } from "@/lib/arkiv/types";
+import { useArkivStore } from "@/store/useArkivStore";
+import { useSchemaStore, type SchemaNode } from "@/store/useSchemaStore";
 
 const inputClassName =
-  "nodrag nopan nowheel h-10 w-full rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 text-sm text-slate-950 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_10px_30px_rgba(148,163,184,0.08)] outline-none transition duration-200 placeholder:text-slate-400 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900 dark:focus:ring-sky-400/10";
+  "nodrag nopan h-10 w-full rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 text-sm text-slate-950 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_10px_30px_rgba(148,163,184,0.08)] outline-none transition duration-200 placeholder:text-slate-400 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-500/10 disabled:cursor-not-allowed disabled:opacity-80 dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900 dark:focus:ring-sky-400/10";
 
 const selectClassName =
-  "nodrag nopan nowheel h-10 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 text-sm font-medium text-slate-700 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_10px_30px_rgba(148,163,184,0.08)] outline-none transition duration-200 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:bg-slate-900 dark:focus:ring-sky-400/10";
+  "nodrag nopan h-10 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 text-sm font-medium text-slate-700 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_10px_30px_rgba(148,163,184,0.08)] outline-none transition duration-200 focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-500/10 disabled:cursor-not-allowed disabled:opacity-80 dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:bg-slate-900 dark:focus:ring-sky-400/10";
 
 export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
   const updateEntityName = useSchemaStore((state) => state.updateEntityName);
@@ -28,29 +22,20 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
   );
   const addField = useSchemaStore((state) => state.addField);
   const updateFieldName = useSchemaStore((state) => state.updateFieldName);
+  const updateFieldValue = useSchemaStore((state) => state.updateFieldValue);
   const updateFieldType = useSchemaStore((state) => state.updateFieldType);
-  const expirationBlock = formatBlockNumber(
-    getExpirationBlock(data.expirationDuration),
+  const blockTiming = useArkivStore((state) => state.blockTiming);
+  const estimatedExpirationBlock = estimateExpirationBlock(
+    data.expirationDuration,
+    blockTiming,
   );
-  const systemAttributes = getArkivSystemAttributes(data.expirationDuration);
-
-  const handleEntityNameChange = (value: string) => {
-    updateEntityName(id, value);
-  };
-
-  const handleFieldNameChange = (fieldId: string, value: string) => {
-    updateFieldName(id, fieldId, value);
-  };
-
-  const handleFieldTypeChange = (
-    fieldId: string,
-    value: IndexedAttributeType,
-  ) => {
-    updateFieldType(id, fieldId, value);
-  };
+  const isDraft = data.mode === "draft";
+  const expirationBlockLabel = isDraft
+    ? formatBlockNumber(estimatedExpirationBlock)
+    : data.confirmedExpirationBlock;
 
   return (
-    <div className="relative min-w-[23rem]">
+    <div className="relative min-w-[31rem]">
       <Handle
         type="target"
         position={Position.Left}
@@ -75,35 +60,45 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
               Entity
             </div>
 
-            <div className="w-56 space-y-2 rounded-[22px] border border-white/80 bg-white/72 p-3 shadow-[0_14px_34px_-24px_rgba(15,23,42,0.3)] backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/70">
+            <div className="w-60 space-y-2 rounded-[22px] border border-white/80 bg-white/72 p-3 shadow-[0_14px_34px_-24px_rgba(15,23,42,0.3)] backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/70">
               <p className="text-[11px] leading-4 font-medium text-slate-500 dark:text-slate-400">
-                Estimated On-Chain Expiration Block: {expirationBlock}
+                {isDraft
+                  ? "Estimated On-Chain Expiration Block"
+                  : "On-Chain Expiration Block"}
+                : {expirationBlockLabel ?? " Loading..."}
               </p>
-              <select
-                value={data.expirationDuration}
-                onChange={(event) =>
-                  updateExpirationDuration(
-                    id,
-                    event.target.value as ExpirationDuration,
-                  )
-                }
-                className={`${selectClassName} h-10 w-full`}
-              >
-                {EXPIRATION_DURATION_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              {isDraft ? (
+                <select
+                  value={data.expirationDuration}
+                  onChange={(event) =>
+                    updateExpirationDuration(
+                      id,
+                      event.target.value as ExpirationDuration,
+                    )
+                  }
+                  className={`${selectClassName} h-10 w-full`}
+                >
+                  {EXPIRATION_DURATION_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-3 py-2 text-sm text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-300">
+                  Fetched live from Arkiv Kaolin
+                </div>
+              )}
             </div>
           </div>
 
           <div className="min-w-0 flex-1 space-y-2">
             <input
               value={data.label}
-              onChange={(event) => handleEntityNameChange(event.target.value)}
+              onChange={(event) => updateEntityName(id, event.target.value)}
               className={`${inputClassName} h-11 border-white/90 bg-white/88 text-lg font-semibold tracking-[-0.02em] shadow-[0_1px_1px_rgba(15,23,42,0.04),0_12px_32px_rgba(148,163,184,0.12)]`}
               placeholder="Entity name"
+              disabled={!isDraft}
             />
           </div>
         </div>
@@ -115,39 +110,45 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                 Queryable Indexed Attributes
               </p>
             </div>
-            {data.columns.map((column) => (
+            {data.fields.map((field) => (
               <div
-                key={column.id}
-                className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-[22px] border border-white/70 bg-white/70 p-2.5 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.24)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/55"
+                key={field.id}
+                className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[22px] border border-white/70 bg-white/70 p-2.5 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.24)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/55"
               >
                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                   <span
                     className={[
                       "ml-2 size-2 rounded-full",
-                      column.type === "indexedNumber"
+                      field.type === "indexedNumber"
                         ? "bg-sky-400 dark:bg-sky-500"
                         : "bg-violet-400 dark:bg-violet-500",
                     ].join(" ")}
                   />
                   <input
-                    value={column.name}
-                    onChange={(event) =>
-                      handleFieldNameChange(column.id, event.target.value)
-                    }
+                    value={field.name}
+                    onChange={(event) => updateFieldName(id, field.id, event.target.value)}
                     className={`${inputClassName} h-10 min-w-0 border-transparent bg-transparent px-1 shadow-none dark:bg-transparent`}
                     placeholder="Field name"
+                    disabled={!isDraft}
                   />
                 </div>
 
+                <input
+                  value={field.value}
+                  onChange={(event) => updateFieldValue(id, field.id, event.target.value)}
+                  className={`${inputClassName} h-10 min-w-0`}
+                  placeholder={field.type === "indexedNumber" ? "123" : "Field value"}
+                  disabled={!isDraft}
+                  inputMode={field.type === "indexedNumber" ? "decimal" : "text"}
+                />
+
                 <select
-                  value={column.type}
+                  value={field.type}
                   onChange={(event) =>
-                    handleFieldTypeChange(
-                      column.id,
-                      event.target.value as IndexedAttributeType,
-                    )
+                    updateFieldType(id, field.id, event.target.value as IndexedAttributeType)
                   }
                   className={`${selectClassName} h-10 min-w-52`}
+                  disabled={!isDraft}
                 >
                   <option value="indexedString">Indexed String Attribute</option>
                   <option value="indexedNumber">Indexed Number Attribute</option>
@@ -156,41 +157,62 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
             ))}
           </div>
 
-          <div className="rounded-[24px] border border-sky-100/80 bg-sky-50/70 p-3.5 shadow-[0_14px_34px_-24px_rgba(14,165,233,0.2)] dark:border-sky-500/15 dark:bg-sky-500/8">
-            <div className="space-y-1">
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
-                Automatic System Attributes (Non-Editable)
-              </p>
-              <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
-                These attributes are indexed automatically by the network.
-              </p>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {systemAttributes.map((attribute) => (
-                <div
-                  key={attribute.name}
-                  className="rounded-[20px] border border-white/80 bg-white/78 px-3 py-2.5 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.3)] dark:border-slate-800/80 dark:bg-slate-950/60"
-                >
-                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                    {attribute.name}
+          {!isDraft && data.systemAttributes ? (
+            <div className="rounded-[24px] border border-sky-100/80 bg-sky-50/70 p-3.5 shadow-[0_14px_34px_-24px_rgba(14,165,233,0.2)] dark:border-sky-500/15 dark:bg-sky-500/8">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
+                    Automatic System Attributes (On-Chain)
                   </p>
-                  <p className="mt-1 break-all font-mono text-xs leading-5 text-slate-700 dark:text-slate-200">
-                    {attribute.value}
-                  </p>
+                  {data.explorerUrl ? (
+                    <a
+                      href={data.explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700 transition hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                    >
+                      Explorer
+                      <ExternalLink className="size-3" />
+                    </a>
+                  ) : null}
                 </div>
-              ))}
-            </div>
-          </div>
+                <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  These values are fetched directly from the Arkiv network for this entity.
+                </p>
+              </div>
 
-          <Button
-            size="sm"
-            onClick={() => addField(id)}
-            className="nodrag nopan nowheel h-11 w-full rounded-[22px] border border-transparent bg-slate-950 text-white shadow-[0_18px_40px_-22px_rgba(15,23,42,0.7)] transition duration-200 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-          >
-            <Plus className="size-4" />
-            New Field
-          </Button>
+              <div className="mt-3 space-y-2">
+                {data.systemAttributes.map((attribute) => (
+                  <div
+                    key={attribute.name}
+                    className="rounded-[20px] border border-white/80 bg-white/78 px-3 py-2.5 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.3)] dark:border-slate-800/80 dark:bg-slate-950/60"
+                  >
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      {attribute.name}
+                    </p>
+                    <p className="mt-1 break-all font-mono text-xs leading-5 text-slate-700 dark:text-slate-200">
+                      {attribute.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {isDraft ? (
+            <Button
+              size="sm"
+              onClick={() => addField(id)}
+              className="nodrag nopan h-11 w-full rounded-[22px] border border-transparent bg-slate-950 text-white shadow-[0_18px_40px_-22px_rgba(15,23,42,0.7)] transition duration-200 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+            >
+              <Plus className="size-4" />
+              New Field
+            </Button>
+          ) : (
+            <div className="rounded-[22px] border border-slate-200/80 bg-white/78 px-4 py-3 text-sm text-slate-600 dark:border-slate-800/80 dark:bg-slate-950/60 dark:text-slate-300">
+              This entity is loaded from Arkiv and shown read-only in the designer.
+            </div>
+          )}
         </div>
       </div>
 
