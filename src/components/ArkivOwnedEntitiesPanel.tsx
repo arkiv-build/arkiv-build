@@ -17,14 +17,14 @@ export function ArkivOwnedEntitiesPanel() {
   const loadEntityIntoCanvas = useArkivStore((state) => state.loadEntityIntoCanvas);
 
   return (
-    <div className="w-[24rem] rounded-[16px] border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex w-[24rem] min-h-0 flex-1 flex-col rounded-[16px] border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-gray-500 font-mono">
             Wallet-Owned Entities
           </p>
           <p className="mt-1 text-sm text-gray-700">
-            Load entities owned by the connected MetaMask account into the designer.
+            Load entities owned by the connected wallet 
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export function ArkivOwnedEntitiesPanel() {
         </Button>
       </div>
 
-      <div className="mt-4 rounded-[12px] border border-gray-200 bg-gray-50/50 p-3">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-[12px] border border-gray-200 bg-gray-50/50 p-3">
         {!walletAvailable ? (
           <div className="flex items-start gap-3 text-sm text-gray-600">
             <Wallet className="mt-0.5 size-4 text-gray-400" />
@@ -56,11 +56,11 @@ export function ArkivOwnedEntitiesPanel() {
             Loading entities from Kaolin...
           </div>
         ) : ownedEntities.length === 0 ? (
-          <p className="text-sm text-gray-600">
+          <p className="shrink-0 text-sm text-gray-600">
             No wallet-owned entities were found on Arkiv Kaolin yet.
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="flex-1 space-y-2 overflow-y-auto pr-2 pb-2">
             {ownedEntities.map((entity) => (
               <button
                 key={entity.key}
@@ -74,16 +74,6 @@ export function ArkivOwnedEntitiesPanel() {
                     <p className="truncate text-sm font-bold text-gray-900">
                       {entity.label}
                     </p>
-                    <span
-                      className={[
-                        "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                        entity.compatible
-                          ? "bg-[#e6f4ea] text-[#137333]"
-                          : "bg-[#fce8e6] text-[#c5221f]",
-                      ].join(" ")}
-                    >
-                      {entity.compatible ? "Compatible" : "Unsupported"}
-                    </span>
                   </div>
                   <p className="mt-1 text-xs text-gray-600">
                     {entity.preview}

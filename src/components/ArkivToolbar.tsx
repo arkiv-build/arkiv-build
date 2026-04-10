@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, TableProperties } from "lucide-react";
+import { Database, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSchemaStore } from "@/store/useSchemaStore";
@@ -15,7 +15,7 @@ export function ArkivToolbar() {
       <div className="rounded-[16px] border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex size-12 items-center justify-center rounded-xl bg-gray-100 text-[#ff7a45]">
-            <TableProperties className="size-6" />
+            <Database className="size-6" />
           </div>
 
           <div className="min-w-0 flex-1">

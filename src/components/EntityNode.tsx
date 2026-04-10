@@ -300,19 +300,18 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
                     value={field.value}
                     onChange={(e) => updateFieldValue(id, field.id, e.target.value)}
                     disabled={isRelation}
-                    className={`${inputClassName} h-10 min-w-0 ${
-                      isRelation && !field.value
+                    className={`${inputClassName} h-10 min-w-0 ${isRelation && !field.value
                         ? 'text-indigo-400/70 italic dark:text-indigo-300/50'
                         : isRelation
-                        ? 'text-indigo-600 font-mono text-[10px] bg-indigo-100/50 border-indigo-200/60 dark:bg-indigo-900/30 dark:border-indigo-500/30'
-                        : ''
-                    }`}
+                          ? 'text-indigo-600 font-mono text-[10px] bg-indigo-100/50 border-indigo-200/60 dark:bg-indigo-900/30 dark:border-indigo-500/30'
+                          : ''
+                      }`}
                     placeholder={
                       isRelation
                         ? 'Pending deployment…'
                         : field.type === 'indexedNumber'
-                        ? '0'
-                        : 'Initial value…'
+                          ? '0'
+                          : 'Initial value…'
                     }
                     inputMode={field.type === 'indexedNumber' ? 'decimal' : 'text'}
                   />

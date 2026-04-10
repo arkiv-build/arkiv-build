@@ -45,6 +45,7 @@ type ArkivState = {
   deployActiveDraft: () => Promise<void>;
   deployDraft: (nodeId: string) => Promise<void>;
   updateActiveEntity: () => Promise<void>;
+  disconnectWallet: () => void;
 };
 
 let unsubscribeWalletEvents: (() => void) | undefined;
@@ -384,5 +385,12 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
     } finally {
       set({ updating: false });
     }
+  },
+  disconnectWallet: () => {
+    set({
+      account: undefined,
+      ownedEntities: [],
+    });
+    useSchemaStore.getState().resetToSingleDraft();
   },
 }));
