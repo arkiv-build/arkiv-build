@@ -105,7 +105,9 @@ const coerceDurationFromBlocks = (
 };
 
 const mapGenericAttributesToFields = (entity: Entity) =>
-  entity.attributes.map(
+  entity.attributes
+    .filter((attribute) => attribute.key !== "type")
+    .map(
     (attribute): EntityField => ({
       id: `${attribute.key}-${crypto.randomUUID()}`,
       name: attribute.key,
