@@ -2,14 +2,13 @@
 
 import "@xyflow/react/dist/style.css";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   Background,
   BackgroundVariant,
   Controls,
   MarkerType,
-  Panel,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -41,11 +40,32 @@ function SchemaCanvas() {
   const initializeArkiv = useArkivStore((state) => state.initialize);
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const { setCenter, getNodes } = useReactFlow();
+  const previousNodeIdsRef = useRef<Set<string>>(new Set());
+  const nodeIdsKey = useMemo(() => nodes.map((node) => node.id).join('|'), [nodes]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       const allNodes = getNodes();
-      if (allNodes.length === 0) return;
+      if (allNodes.length === 0) {
+        previousNodeIdsRef.current = new Set();
+        return;
+      }
+
+      const previousNodeIds = previousNodeIdsRef.current;
+      const addedNodes = allNodes.filter((node) => !previousNodeIds.has(node.id));
+      const newestAddedNode =
+        [...addedNodes].reverse().find((node) => node.selected) ??
+        addedNodes[addedNodes.length - 1];
+
+      if (newestAddedNode) {
+        const width = newestAddedNode.measured?.width || 544;
+        const centerX = newestAddedNode.position.x + width / 2;
+        const centerY = newestAddedNode.position.y;
+
+        setCenter(centerX, centerY, { zoom: 0.9, duration: 600 });
+        previousNodeIdsRef.current = new Set(allNodes.map((node) => node.id));
+        return;
+      }
 
       let minX = Infinity, minY = Infinity, maxX = -Infinity;
       allNodes.forEach((n) => {
@@ -60,9 +80,10 @@ function SchemaCanvas() {
 
       const centerX = minX + (maxX - minX) / 2;
       setCenter(centerX, minY, { zoom: 0.9, duration: 600 });
+      previousNodeIdsRef.current = new Set(allNodes.map((node) => node.id));
     }, 50);
     return () => clearTimeout(timeout);
-  }, [nodes.length, setCenter, getNodes]);
+  }, [nodeIdsKey, setCenter, getNodes]);
 
   useEffect(() => {
     void initializeArkiv();

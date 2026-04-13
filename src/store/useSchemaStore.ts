@@ -85,13 +85,23 @@ type SchemaState = {
   loadGraphOfEntities: (nodes: SchemaNode[], edges: SchemaEdge[]) => void;
 };
 
-const getEntityPosition = (index: number): XYPosition => {
-  const column = index % 3;
-  const row = Math.floor(index / 3);
+const ENTITY_START_POSITION: XYPosition = { x: 96, y: 140 };
+const ENTITY_DEFAULT_WIDTH = 544;
+const ENTITY_HORIZONTAL_GAP = 96;
+
+const getNextEntityPosition = (nodes: SchemaNode[]): XYPosition => {
+  if (nodes.length === 0) {
+    return ENTITY_START_POSITION;
+  }
+
+  const topMostY = Math.min(...nodes.map((node) => node.position.y));
+  const rightMostX = Math.max(
+    ...nodes.map((node) => node.position.x + (node.measured?.width ?? ENTITY_DEFAULT_WIDTH)),
+  );
 
   return {
-    x: 96 + column * 420 + (index % 2) * 16,
-    y: 140 + row * 260,
+    x: rightMostX + ENTITY_HORIZONTAL_GAP,
+    y: topMostY,
   };
 };
 
@@ -108,10 +118,10 @@ const createEmptyDataField = (): EntityDataField => ({
   value: "",
 });
 
-const createDraftEntityNode = (index: number): SchemaNode => ({
+const createDraftEntityNode = (position: XYPosition): SchemaNode => ({
   id: `entity-${crypto.randomUUID()}`,
   type: "entity",
-  position: getEntityPosition(index),
+  position,
   data: {
     mode: "draft",
     label: "",
@@ -151,7 +161,7 @@ export const mapSnapshotToNodeData = (
 });
 
 export const useSchemaStore = create<SchemaState>((set, get) => ({
-  nodes: [{ ...createDraftEntityNode(0), selected: true }],
+  nodes: [{ ...createDraftEntityNode(ENTITY_START_POSITION), selected: true }],
   edges: [],
   activeNodeId: undefined,
   onNodesChange: (changes) =>
@@ -238,7 +248,10 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     }),
   addDraftEntity: () =>
     set((state) => {
-      const nextNode = { ...createDraftEntityNode(state.nodes.length), selected: true };
+      const nextNode = {
+        ...createDraftEntityNode(getNextEntityPosition(state.nodes)),
+        selected: true,
+      };
 
       return {
         nodes: [...markSelectedNode(state.nodes, nextNode.id), nextNode],
@@ -246,7 +259,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       };
     }),
   resetToSingleDraft: () => {
-    const nextNode = { ...createDraftEntityNode(0), selected: true };
+    const nextNode = { ...createDraftEntityNode(ENTITY_START_POSITION), selected: true };
 
     set({
       nodes: [nextNode],
@@ -292,7 +305,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       const nextNode: SchemaNode = {
         id: `entity-${crypto.randomUUID()}`,
         type: "entity",
-        position: getEntityPosition(state.nodes.length),
+        position: getNextEntityPosition(state.nodes),
         data: mapSnapshotToNodeData(snapshot),
         selected: true,
       };
