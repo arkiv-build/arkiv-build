@@ -194,7 +194,7 @@ export const deployEntityFromDraft = async ({
   const publicClient = createArkivPublicClient();
 
   // If the user defined data fields, serialize them to a JSON object.
-  // Fall back to the auto-generated designer payload if none are provided.
+  // Fall back to an empty JSON object if none are provided.
   let payloadBytes: Uint8Array;
   const contentType = 'application/json';
 
@@ -206,8 +206,7 @@ export const deployEntityFromDraft = async ({
     )
     payloadBytes = jsonToPayload(dataObj)
   } else {
-    const payload = buildDesignerPayload(trimmedLabel, validFields)
-    payloadBytes = jsonToPayload(payload)
+    payloadBytes = jsonToPayload({})
   }
 
   const expiresInSeconds = getExpirationSeconds(expirationDuration)
