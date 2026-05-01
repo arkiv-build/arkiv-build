@@ -377,24 +377,25 @@ const parseJsonContent = (content: string) => {
   }
 }
 
+const REQUEST_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS) || 180_000
+
 const postToProvider = async ({
   provider,
   body,
-  url,
 }: {
   provider: ProviderConfig
   body: Record<string, unknown>
-  url?: string
 }) => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (provider.apiKey) {
     headers.Authorization = `Bearer ${provider.apiKey}`
   }
 
-  return fetch(url ?? provider.url, {
+  return fetch(provider.url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 }
 

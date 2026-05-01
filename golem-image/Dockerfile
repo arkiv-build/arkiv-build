@@ -5,8 +5,8 @@
 # prebuilt llama-server binary from llama.cpp's GitHub Releases. No
 # compilation; ~2-3 min build.
 #
-# Base is ubuntu:22.04 because the prebuilt binary is linked against Ubuntu
-# 22.04's libc and libstdc++ — using debian-slim risks ABI mismatch.
+# Base is ubuntu:24.04 because the prebuilt llama-server binary requires
+# glibc 2.38+ / GLIBCXX 3.4.32+ — older Ubuntu/Debian fail at load time.
 #
 # Override the model with --build-arg MODEL_URL=...
 # Override the llama.cpp release with --build-arg LLAMA_RELEASE_TAG=bXXXX.
