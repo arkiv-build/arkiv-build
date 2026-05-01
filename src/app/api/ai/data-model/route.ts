@@ -7,6 +7,59 @@ import {
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MODELS_WITHOUT_STRUCTURED_OUTPUTS = new Set(['openai/gpt-oss-120b:free'])
 
+type ProviderId = 'openrouter' | 'golem'
+
+type ProviderConfig = {
+  id: ProviderId
+  url: string
+  apiKey?: string
+  model: string
+  supportsStructuredOutputs: boolean
+}
+
+const resolveProvider = (): ProviderConfig | { error: string } => {
+  const id = (process.env.AI_PROVIDER ?? 'openrouter') as ProviderId
+
+  if (id === 'golem') {
+    const baseUrl = process.env.GOLEM_INFERENCE_URL?.trim()
+    const model = process.env.GOLEM_MODEL?.trim() || 'qwen2.5-0.5b-instruct'
+
+    if (!baseUrl) {
+      return {
+        error:
+          'AI_PROVIDER=golem is set but GOLEM_INFERENCE_URL is missing. Start the golem-host script and point this at its proxy.',
+      }
+    }
+
+    const url = baseUrl.replace(/\/+$/, '') + '/chat/completions'
+
+    return {
+      id,
+      url,
+      model,
+      supportsStructuredOutputs: false,
+    }
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY
+  const model = process.env.OPENROUTER_MODEL
+
+  if (!apiKey) {
+    return { error: 'Missing OPENROUTER_API_KEY. Add it to your environment before generating a model.' }
+  }
+  if (!model) {
+    return { error: 'Missing OPENROUTER_MODEL. Set it in your environment before generating a model.' }
+  }
+
+  return {
+    id: 'openrouter',
+    url: OPENROUTER_URL,
+    apiKey,
+    model,
+    supportsStructuredOutputs: !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(model),
+  }
+}
+
 const SYSTEM_PROMPT = `# ROLE AND DIRECTIVE
 You are an Elite Web3 Data Architect specializing in Arkiv Network (formerly Golem DB).
 Your sole purpose is to translate user requirements into highly optimized, production-ready Arkiv DB structures.
@@ -324,42 +377,32 @@ const parseJsonContent = (content: string) => {
   }
 }
 
-const postToOpenRouter = async ({
-  apiKey,
+const postToProvider = async ({
+  provider,
   body,
+  url,
 }: {
-  apiKey: string
+  provider: ProviderConfig
   body: Record<string, unknown>
-}) =>
-  fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
-
-export async function POST(request: Request) {
-  const apiKey = process.env.OPENROUTER_API_KEY
-  const model = process.env.OPENROUTER_MODEL
-
-  if (!apiKey) {
-    return Response.json(
-      {
-        error: 'Missing OPENROUTER_API_KEY. Add it to your environment before generating a model.',
-      },
-      { status: 500 },
-    )
+  url?: string
+}) => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (provider.apiKey) {
+    headers.Authorization = `Bearer ${provider.apiKey}`
   }
 
-  if (!model) {
-    return Response.json(
-      {
-        error: 'Missing OPENROUTER_MODEL. Set it in your environment before generating a model.',
-      },
-      { status: 500 },
-    )
+  return fetch(url ?? provider.url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+}
+
+export async function POST(request: Request) {
+  const provider = resolveProvider()
+
+  if ('error' in provider) {
+    return Response.json({ error: provider.error }, { status: 500 })
   }
 
   const body = (await request.json()) as {
@@ -385,10 +428,9 @@ export async function POST(request: Request) {
         ].join('\n\n')
       : `Design an Arkiv data model for this use case:\n\n${useCase}`
 
-  const supportsStructuredOutputs = !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(model)
   const requestBody: Record<string, unknown> = {
-    model,
-    temperature: supportsStructuredOutputs ? 0.2 : 0,
+    model: provider.model,
+    temperature: provider.supportsStructuredOutputs ? 0.2 : 0,
     max_tokens: 2800,
     messages: [
       {
@@ -397,14 +439,14 @@ export async function POST(request: Request) {
       },
       {
         role: 'user',
-        content: supportsStructuredOutputs
+        content: provider.supportsStructuredOutputs
           ? userPrompt
           : `${userPrompt}\n\n${NON_STRUCTURED_OUTPUT_APPENDIX}`,
       },
     ],
   }
 
-  if (supportsStructuredOutputs) {
+  if (provider.supportsStructuredOutputs) {
     requestBody.provider = {
       require_parameters: true,
     }
@@ -415,10 +457,7 @@ export async function POST(request: Request) {
     requestBody.plugins = [{ id: 'response-healing' }]
   }
 
-  const upstreamResponse = await postToOpenRouter({
-    apiKey,
-    body: requestBody,
-  })
+  const upstreamResponse = await postToProvider({ provider, body: requestBody })
 
   const payload = (await upstreamResponse.json()) as OpenRouterResponse
 
@@ -427,7 +466,7 @@ export async function POST(request: Request) {
       {
         error:
           payload.error?.message ||
-          `OpenRouter request failed with status ${upstreamResponse.status}.`,
+          `${provider.id} request failed with status ${upstreamResponse.status}.`,
       },
       { status: upstreamResponse.status },
     )
@@ -440,14 +479,14 @@ export async function POST(request: Request) {
     try {
       parsed = parseJsonContent(content)
     } catch (parseError) {
-      if (supportsStructuredOutputs) {
+      if (provider.supportsStructuredOutputs) {
         throw parseError
       }
 
-      const repairResponse = await postToOpenRouter({
-        apiKey,
+      const repairResponse = await postToProvider({
+        provider,
         body: {
-          model,
+          model: provider.model,
           temperature: 0,
           max_tokens: 2800,
           messages: [
@@ -472,7 +511,7 @@ export async function POST(request: Request) {
       if (!repairResponse.ok) {
         throw new Error(
           repairPayload.error?.message ||
-            `OpenRouter repair request failed with status ${repairResponse.status}.`,
+            `${provider.id} repair request failed with status ${repairResponse.status}.`,
         )
       }
 
@@ -483,7 +522,8 @@ export async function POST(request: Request) {
 
     return Response.json({
       dataModel,
-      model,
+      model: provider.model,
+      provider: provider.id,
     })
   } catch (error) {
     return Response.json(

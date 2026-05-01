@@ -6,10 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "golem:build": "docker buildx build --progress=plain --platform=linux/amd64 --load -t arkiv-golem-llm -f golem-image/Dockerfile . && npx --yes gvmkit-build arkiv-golem-llm --push --nologin",
+    "golem:host": "node --env-file-if-exists=.env.local scripts/golem-host.mjs"
   },
   "dependencies": {
     "@arkiv-network/sdk": "^0.6.3",
+    "@golem-sdk/golem-js": "^3.9.0",
+    "@golem-sdk/pino-logger": "^1.1.0",
     "@xyflow/react": "^12.10.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
