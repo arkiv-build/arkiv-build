@@ -1,15 +1,3 @@
-// Phase 0 Golem host runner.
-//
-// Connects to a locally running yagna daemon, rents a CPU VM on the Golem
-// testnet, uploads scripts/golem-vm-server.mjs into the VM, starts it, and
-// opens a TCP proxy from the rented VM's port 11434 to localhost:11434.
-//
-// Once this is running, the Next.js app (with AI_PROVIDER=golem and
-// GOLEM_INFERENCE_URL=http://localhost:11434/v1) talks to the rented VM as if
-// it were a local OpenAI-compatible endpoint.
-//
-// Stop with Ctrl-C. The rental ends when the script exits.
-
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import process from 'node:process'
