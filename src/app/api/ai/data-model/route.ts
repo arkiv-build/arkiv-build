@@ -18,7 +18,7 @@ type ProviderConfig = {
 }
 
 const resolveProvider = (): ProviderConfig | { error: string } => {
-  const id = (process.env.AI_PROVIDER ?? 'openrouter') as ProviderId
+  const id = (process.env.AI_PROVIDER ?? 'golem') as ProviderId
 
   if (id === 'golem') {
     const baseUrl = process.env.GOLEM_INFERENCE_URL?.trim()
