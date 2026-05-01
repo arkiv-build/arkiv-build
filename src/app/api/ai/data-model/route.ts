@@ -23,6 +23,7 @@ const resolveProvider = (): ProviderConfig | { error: string } => {
   if (id === 'golem') {
     const baseUrl = process.env.GOLEM_INFERENCE_URL?.trim()
     const model = process.env.GOLEM_MODEL?.trim() || 'qwen2.5-0.5b-instruct'
+    const apiKey = process.env.GOLEM_API_KEY?.trim()
 
     if (!baseUrl) {
       return {
@@ -36,6 +37,7 @@ const resolveProvider = (): ProviderConfig | { error: string } => {
     return {
       id,
       url,
+      apiKey,
       model,
       supportsStructuredOutputs: false,
     }
