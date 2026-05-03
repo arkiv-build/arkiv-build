@@ -4,61 +4,28 @@ import {
   type GeneratedDataModel,
 } from '@/lib/ai/dataModel'
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const MODELS_WITHOUT_STRUCTURED_OUTPUTS = new Set(['openai/gpt-oss-120b:free'])
-
-type ProviderId = 'openrouter' | 'golem'
-
 type ProviderConfig = {
-  id: ProviderId
   url: string
   apiKey?: string
   model: string
-  supportsStructuredOutputs: boolean
 }
 
 const resolveProvider = (): ProviderConfig | { error: string } => {
-  const id = (process.env.AI_PROVIDER ?? 'golem') as ProviderId
+  const baseUrl = process.env.GOLEM_INFERENCE_URL?.trim()
+  const model = process.env.GOLEM_MODEL?.trim() || 'qwen2.5-0.5b-instruct'
+  const apiKey = process.env.GOLEM_API_KEY?.trim()
 
-  if (id === 'golem') {
-    const baseUrl = process.env.GOLEM_INFERENCE_URL?.trim()
-    const model = process.env.GOLEM_MODEL?.trim() || 'qwen2.5-0.5b-instruct'
-    const apiKey = process.env.GOLEM_API_KEY?.trim()
-
-    if (!baseUrl) {
-      return {
-        error:
-          'AI_PROVIDER=golem is set but GOLEM_INFERENCE_URL is missing. Start the golem-host script and point this at its proxy.',
-      }
-    }
-
-    const url = baseUrl.replace(/\/+$/, '') + '/chat/completions'
-
+  if (!baseUrl) {
     return {
-      id,
-      url,
-      apiKey,
-      model,
-      supportsStructuredOutputs: false,
+      error:
+        'GOLEM_INFERENCE_URL is missing. Start the golem-host script and point this at its proxy.',
     }
-  }
-
-  const apiKey = process.env.OPENROUTER_API_KEY
-  const model = process.env.OPENROUTER_MODEL
-
-  if (!apiKey) {
-    return { error: 'Missing OPENROUTER_API_KEY. Add it to your environment before generating a model.' }
-  }
-  if (!model) {
-    return { error: 'Missing OPENROUTER_MODEL. Set it in your environment before generating a model.' }
   }
 
   return {
-    id: 'openrouter',
-    url: OPENROUTER_URL,
+    url: baseUrl.replace(/\/+$/, '') + '/chat/completions',
     apiKey,
     model,
-    supportsStructuredOutputs: !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(model),
   }
 }
 
@@ -193,7 +160,7 @@ Rules:
 - If the source content implies a relationship, include it explicitly in the relations array
 - Ensure the final result is a single valid JSON object`
 
-type OpenRouterMessageContentPart = {
+type ChatMessageContentPart = {
   type?: string
   text?: string
 }
@@ -325,10 +292,10 @@ const DATA_MODEL_JSON_SCHEMA = {
   },
 } as const
 
-type OpenRouterResponse = {
+type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
-      content?: string | Record<string, unknown> | OpenRouterMessageContentPart[]
+      content?: string | Record<string, unknown> | ChatMessageContentPart[]
     }
   }>
   error?: {
@@ -336,7 +303,7 @@ type OpenRouterResponse = {
   }
 }
 
-const extractResponseText = (payload: OpenRouterResponse) => {
+const extractResponseText = (payload: ChatCompletionResponse) => {
   const content = payload.choices?.[0]?.message?.content
 
   if (typeof content === 'string') {
@@ -353,7 +320,7 @@ const extractResponseText = (payload: OpenRouterResponse) => {
     return JSON.stringify(content)
   }
 
-  throw new Error('OpenRouter returned an empty response.')
+  throw new Error('Golem inference returned an empty response.')
 }
 
 const parseJsonContent = (content: string) => {
@@ -433,7 +400,7 @@ export async function POST(request: Request) {
 
   const requestBody: Record<string, unknown> = {
     model: provider.model,
-    temperature: provider.supportsStructuredOutputs ? 0.2 : 0,
+    temperature: 0,
     max_tokens: 2800,
     messages: [
       {
@@ -442,34 +409,21 @@ export async function POST(request: Request) {
       },
       {
         role: 'user',
-        content: provider.supportsStructuredOutputs
-          ? userPrompt
-          : `${userPrompt}\n\n${NON_STRUCTURED_OUTPUT_APPENDIX}`,
+        content: `${userPrompt}\n\n${NON_STRUCTURED_OUTPUT_APPENDIX}`,
       },
     ],
   }
 
-  if (provider.supportsStructuredOutputs) {
-    requestBody.provider = {
-      require_parameters: true,
-    }
-    requestBody.response_format = {
-      type: 'json_schema',
-      json_schema: DATA_MODEL_JSON_SCHEMA,
-    }
-    requestBody.plugins = [{ id: 'response-healing' }]
-  }
-
   const upstreamResponse = await postToProvider({ provider, body: requestBody })
 
-  const payload = (await upstreamResponse.json()) as OpenRouterResponse
+  const payload = (await upstreamResponse.json()) as ChatCompletionResponse
 
   if (!upstreamResponse.ok) {
     return Response.json(
       {
         error:
           payload.error?.message ||
-          `${provider.id} request failed with status ${upstreamResponse.status}.`,
+          `Golem inference request failed with status ${upstreamResponse.status}.`,
       },
       { status: upstreamResponse.status },
     )
@@ -481,11 +435,7 @@ export async function POST(request: Request) {
 
     try {
       parsed = parseJsonContent(content)
-    } catch (parseError) {
-      if (provider.supportsStructuredOutputs) {
-        throw parseError
-      }
-
+    } catch {
       const repairResponse = await postToProvider({
         provider,
         body: {
@@ -509,12 +459,12 @@ export async function POST(request: Request) {
         },
       })
 
-      const repairPayload = (await repairResponse.json()) as OpenRouterResponse
+      const repairPayload = (await repairResponse.json()) as ChatCompletionResponse
 
       if (!repairResponse.ok) {
         throw new Error(
           repairPayload.error?.message ||
-            `${provider.id} repair request failed with status ${repairResponse.status}.`,
+            `Golem inference repair request failed with status ${repairResponse.status}.`,
         )
       }
 
@@ -526,7 +476,7 @@ export async function POST(request: Request) {
     return Response.json({
       dataModel,
       model: provider.model,
-      provider: provider.id,
+      provider: 'golem',
     })
   } catch (error) {
     return Response.json(
