@@ -1,0 +1,155 @@
+{
+  "network": {
+    "default": "Braga",
+    "sdkImport": "import { braga } from '@arkiv-network/sdk/chains'",
+    "notes": "Braga is the current Arkiv testnet. Always configure clients with the braga chain export."
+  },
+  "bestPractices": [
+    {
+      "id": "project-attribute",
+      "title": "Unique PROJECT_ATTRIBUTE per app",
+      "rule": "Every app should define a unique PROJECT_ATTRIBUTE so records can be scoped to the product or deployment.",
+      "rationale": "Lets queries isolate records for one app and avoids cross-app pollution on shared infrastructure."
+    },
+    {
+      "id": "entity-type-discriminator",
+      "title": "Use entityType as the discriminator",
+      "rule": "Prefer entityType as the app-level discriminator and include it as an indexed attribute alongside the project attribute.",
+      "rationale": "Allows queries to fetch a single entity kind cleanly without overloading payload contents."
+    },
+    {
+      "id": "attributes-as-indexes",
+      "title": "Attributes are query indexes; payload is the body",
+      "rule": "Keep searchable, sortable, range-query, ownership, trust-boundary, and relationship fields in attributes. Store the richer record body in payload.",
+      "rationale": "Attributes drive indexed lookups; payload carries the rest without bloating the query path."
+    },
+    {
+      "id": "numeric-attributes",
+      "title": "Numeric attributes for sort and range queries",
+      "rule": "Use numeric attributes for values that need ordering or range queries: createdAt, updatedAt, counters, scores, prices, expiration windows.",
+      "rationale": "Numeric indexes support range scans; string timestamps do not sort reliably."
+    },
+    {
+      "id": "expiration-helpers",
+      "title": "Use ExpirationTime helpers",
+      "rule": "Use ExpirationTime helpers rather than hand-rolled expiration math. Choose durations intentionally for durable state vs short-lived drafts, jobs, or notifications.",
+      "rationale": "Avoids drift between client and on-chain expiration logic."
+    },
+    {
+      "id": "client-separation",
+      "title": "Separate public read clients from wallet write clients",
+      "rule": "Use public clients for browsing and querying. Use wallet clients only for signatures, writes, or batch mutations.",
+      "rationale": "Avoids prompting wallet signatures on read paths and makes the trust boundary explicit."
+    },
+    {
+      "id": "relationship-entities",
+      "title": "Model unbounded relationships as separate entities",
+      "rule": "Reactions, replies, follows, memberships, votes, events, logs, and ledgers should be their own entity with parent references as indexed attributes.",
+      "rationale": "Embedded arrays grow unbounded and hurt query and write performance."
+    },
+    {
+      "id": "trust-filters",
+      "title": "createdBy / ownedBy filters at trust boundaries",
+      "rule": "Use createdBy or ownedBy filters when trust boundaries matter. Treat app/project, entity type, parent reference, and creator/owner filters as default query guardrails.",
+      "rationale": "Prevents accidentally rendering records that don't belong to the asking user or app."
+    },
+    {
+      "id": "payload-validation",
+      "title": "Defensively validate entity.toJson() payloads",
+      "rule": "Parse, narrow, and handle malformed shapes gracefully before rendering or trusting payload data.",
+      "rationale": "Payloads are user-written record bodies and can be malformed or adversarial."
+    },
+    {
+      "id": "batch-mutations",
+      "title": "Use mutateEntities for batch creates",
+      "rule": "Use mutateEntities when multiple related entities should be written together or when ingestion jobs need throughput.",
+      "rationale": "Avoids N round-trips for related records and keeps writes atomic at the batch level."
+    }
+  ],
+  "examplePatterns": [
+    {
+      "id": "blog-challenge",
+      "title": "Blog Challenge",
+      "patterns": [
+        "Defines a product-scoped project attribute so queries isolate records for one app.",
+        "Uses entityType as a discriminator across blog-domain records.",
+        "Stores createdAt and updatedAt as numeric indexed attributes for sorting and timeline queries.",
+        "Uses .createdBy(...) query filtering for known author or creator boundaries.",
+        "Parses and validates entity.toJson() payloads before rendering.",
+        "Models reactions as separate entities instead of embedding an unbounded reaction list."
+      ]
+    },
+    {
+      "id": "online-forum",
+      "title": "Online Forum",
+      "patterns": [
+        "First-class Post and Reply entities.",
+        "Reply stores replyTo = postId so replies can be queried by parent post.",
+        "Models replies separately to keep thread growth unbounded."
+      ]
+    },
+    {
+      "id": "dashboard-demo",
+      "title": "Dashboard Demo",
+      "patterns": [
+        "Backend ingestion into Arkiv rather than only browser-originated writes.",
+        "Uses mutateEntities for batch writes.",
+        "Numeric timestamp attributes for sorting and incremental sync windows.",
+        "Paginated reads with hasNextPage() and next() for large result sets."
+      ]
+    },
+    {
+      "id": "sdk-sample",
+      "title": "SDK Sample",
+      "patterns": [
+        "Separates public client reads from wallet client writes.",
+        "Uses jsonToPayload to convert structured JSON into an Arkiv payload.",
+        "Uses the query builder for attribute filters, creator/owner scoping, pagination, and typed access."
+      ]
+    }
+  ],
+  "arkivFitVsAlternatives": [
+    {
+      "alternative": "Web2 databases",
+      "arkivAdvantage": "User-owned, wallet-authored, composable data without a product-owned database as the source of truth."
+    },
+    {
+      "alternative": "IPFS or Arweave",
+      "arkivAdvantage": "Queryable attributes and app-friendly mutation/query patterns rather than only content-addressed blobs or permanent files."
+    },
+    {
+      "alternative": "Event indexers like The Graph",
+      "arkivAdvantage": "Stores app records directly and queries indexed attributes without depending on contract event history as the only source."
+    }
+  ],
+  "implementationPlan": {
+    "sections": [
+      "Product summary",
+      "Arkiv architecture",
+      "Entity list",
+      "Indexed attributes",
+      "Payload shapes",
+      "Relationship and query patterns",
+      "Wallet/client setup",
+      "SDK usage",
+      "Implementation phases",
+      "Files/modules to create or update",
+      "Edge cases",
+      "Deployment/env notes"
+    ],
+    "mustMention": [
+      "Braga as the current network",
+      "use braga from @arkiv-network/sdk/chains",
+      "a unique PROJECT_ATTRIBUTE",
+      "entityType as the discriminator",
+      "attributes as query indexes and payload as record body",
+      "numeric attributes for timestamps/sort/range values",
+      "createdBy or ownedBy filters when trust boundaries matter",
+      "relationship entities for unbounded relationships",
+      "ExpirationTime helpers",
+      "public read client vs wallet write client separation",
+      "defensive entity.toJson() validation",
+      "mutateEntities for batch creates where applicable"
+    ]
+  }
+}

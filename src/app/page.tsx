@@ -129,7 +129,7 @@ function SchemaCanvas() {
           </div>
         </div>
 
-        <div className="pointer-events-auto absolute top-[110px] right-6 z-20 flex flex-col items-end gap-4">
+        <div className="pointer-events-auto absolute top-[110px] bottom-6 right-6 z-20 flex flex-col items-end gap-4">
           <Button
             variant="outline"
             onClick={clearCanvas}
@@ -139,7 +139,7 @@ function SchemaCanvas() {
             Clear Canvas
           </Button>
 
-          <div className="relative">
+          <div className="relative flex-1 min-h-0">
             <Button
               variant={isAiPanelOpen ? "ghost" : "outline"}
               className={`absolute z-20 flex items-center justify-center rounded-xl transition-all duration-300 ${
@@ -148,7 +148,7 @@ function SchemaCanvas() {
                   : "h-11 w-11 top-0 right-0 border border-[#ffbe9f] bg-white text-[#ff7a45] shadow-sm hover:bg-[#fff5f0] hover:text-[#e66a39]"
               }`}
               onClick={() => setIsAiPanelOpen((open) => !open)}
-              title={isAiPanelOpen ? "Collapse AI generator" : "Open AI generator"}
+              title={isAiPanelOpen ? "Collapse AI assistant" : "Open AI assistant"}
             >
               {isAiPanelOpen ? (
                 <PanelRightClose className="size-4" />
@@ -158,13 +158,13 @@ function SchemaCanvas() {
             </Button>
 
             <div
-              className={`overflow-hidden transition-all duration-300 ${
+              className={`h-full overflow-hidden transition-all duration-300 ${
                 isAiPanelOpen
                   ? "w-[24rem] opacity-100 translate-x-0"
                   : "w-0 opacity-0 translate-x-6"
               }`}
             >
-              <div className="w-[24rem]">
+              <div className="h-full w-[24rem]">
                 <UseCasePromptPanel />
               </div>
             </div>
@@ -190,7 +190,7 @@ function SchemaCanvas() {
           onNodeClick={(_, node) => setActiveNode(node.id)}
           fitView
           fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.4}
+          minZoom={0.1}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
           className="schema-flow h-full w-full"
@@ -203,8 +203,9 @@ function SchemaCanvas() {
           />
           <Controls
             showInteractive={false}
-            position="bottom-right"
-            className="!overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
+            orientation="horizontal"
+            position="top-right"
+            className="!top-[117px] !right-[11.5rem] !overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
           />
         </ReactFlow>
       </div>

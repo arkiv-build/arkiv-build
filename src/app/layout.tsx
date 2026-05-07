@@ -9,8 +9,8 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "archive visual modeller",
-  description: "archive visual modeller",
+  title: "Arkiv Build",
+  description: "Arkiv Build",
 };
 
 export default function RootLayout({
