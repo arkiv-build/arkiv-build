@@ -3,6 +3,7 @@ import {
   formatBestPracticesForPrompt,
   formatExamplePatternsForPrompt,
   formatNetworkContext,
+  formatPrivacyContext,
 } from '@/lib/ai/arkivContext'
 import type { AssistantMessage } from '@/lib/ai/assistantTypes'
 
@@ -15,6 +16,10 @@ Your job is to help a builder shape an app idea into an Arkiv-first data model a
 Format every response in clean GitHub-flavored markdown. Use headings, short bullet lists, and inline code (backticks) for identifiers, attribute names, and SDK symbols. Keep responses compact enough for a tool panel.
 
 ${formatNetworkContext()}
+
+${formatPrivacyContext()}
+
+CRITICAL: Whenever the user mentions privacy, private data, confidential, secret, hidden, restricted, sensitive, encryption, leaks, "who can see", or anything implying access control, you MUST include an explicit note in your response that data stored on Arkiv is visible on the Arkiv explorer and to network indexers unless it is encrypted client-side before being written. Do not let the user assume that ownership scoping or createdBy/ownedBy filters provide storage-level secrecy.
 
 Arkiv best practices to weave in when relevant:
 ${formatBestPracticesForPrompt()}

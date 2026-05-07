@@ -4,6 +4,16 @@
     "sdkImport": "import { braga } from '@arkiv-network/sdk/chains'",
     "notes": "Braga is the current Arkiv testnet. Always configure clients with the braga chain export."
   },
+  "privacy": {
+    "explorerVisibility": "Arkiv records (entityType, attributes, and payload) are visible on the Arkiv explorer and to network indexers by default. App-level ownership and createdBy/ownedBy filters control who your UI shows data to, but they do NOT hide the data from explorers or anyone reading the network directly.",
+    "rule": "Whenever the user asks about private, confidential, secret, hidden, or restricted data — or about visibility, leaks, encryption, sensitive fields, or 'who can see this' — you MUST explicitly state that data written to Arkiv is visible on the explorer unless encrypted client-side before write. Never imply that ownership scoping alone makes data private from infrastructure.",
+    "guidance": [
+      "Distinguish access privacy (what your app shows) from storage secrecy (what is visible on the network/explorer).",
+      "For true confidentiality, encrypt sensitive fields client-side before calling jsonToPayload, and manage decryption keys off-network.",
+      "Keep only non-sensitive indexing fields in attributes; put encrypted blobs in payload.",
+      "If a public summary is needed, write a separate sanitized public entity rather than relying on access filters to hide a private one."
+    ]
+  },
   "bestPractices": [
     {
       "id": "project-attribute",

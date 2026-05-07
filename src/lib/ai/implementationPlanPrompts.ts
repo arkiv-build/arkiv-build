@@ -2,6 +2,7 @@ import {
   formatExamplePatternsForPrompt,
   formatImplementationPlanRequirements,
   formatNetworkContext,
+  formatPrivacyContext,
 } from '@/lib/ai/arkivContext'
 import type { GeneratedDataModel } from '@/lib/ai/dataModel'
 import type { AssistantMessage } from '@/lib/ai/assistantTypes'
@@ -13,6 +14,10 @@ Use the names Arkiv Build Agent or AI assistant for this workflow.
 Return a practical markdown plan another Codex coding agent can implement directly.
 
 ${formatNetworkContext()}
+
+${formatPrivacyContext()}
+
+If the app involves any private, confidential, or sensitive data, the plan MUST include an explicit "Privacy and explorer visibility" section stating that Arkiv records are visible on the explorer unless encrypted client-side, and specify which fields should be encrypted before write.
 
 ${formatImplementationPlanRequirements()}
 

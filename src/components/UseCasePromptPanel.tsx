@@ -343,7 +343,7 @@ export function UseCasePromptPanel() {
             ) : (
               <Send className="size-4" />
             )}
-            Send
+            Ask
           </Button>
           <Button
             type="button"
@@ -356,7 +356,7 @@ export function UseCasePromptPanel() {
             ) : (
               <Workflow className="size-4" />
             )}
-            {hasExistingModel ? 'Update' : 'Schema'}
+            Model
           </Button>
           <Button
             type="button"

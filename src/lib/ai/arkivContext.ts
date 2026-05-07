@@ -18,8 +18,15 @@ export type ArkivFitNote = {
   arkivAdvantage: string
 }
 
+export type ArkivPrivacyContext = {
+  explorerVisibility: string
+  rule: string
+  guidance: string[]
+}
+
 export type ArkivContext = {
   network: { default: string; sdkImport: string; notes: string }
+  privacy: ArkivPrivacyContext
   bestPractices: ArkivBestPractice[]
   examplePatterns: ArkivExamplePattern[]
   arkivFitVsAlternatives: ArkivFitNote[]
@@ -59,3 +66,11 @@ export const formatImplementationPlanRequirements = () => {
 
 export const formatNetworkContext = () =>
   `Network: ${arkivContext.network.default}\nSDK import: ${arkivContext.network.sdkImport}\n${arkivContext.network.notes}`
+
+export const formatPrivacyContext = () => {
+  const guidance = arkivContext.privacy.guidance
+    .map((item) => `- ${item}`)
+    .join('\n')
+
+  return `Privacy and explorer visibility:\n${arkivContext.privacy.explorerVisibility}\n\nMandatory disclosure rule:\n${arkivContext.privacy.rule}\n\nPrivacy guidance:\n${guidance}`
+}
