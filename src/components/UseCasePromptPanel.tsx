@@ -28,6 +28,10 @@ const MODEL_UNAVAILABLE_MESSAGE =
 
 type LoadingMode = 'discussIdea' | 'generateSchema' | 'generateImplementationPlan'
 
+const isDebugChatToolsEnabled =
+  process.env.NODE_ENV === 'development' &&
+  process.env.NEXT_PUBLIC_ENABLE_CHAT_DEBUG_TOOLS === 'true'
+
 const createMessage = (
   role: AssistantMessage['role'],
   content: string,
@@ -271,6 +275,32 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
     await navigator.clipboard.writeText(plan)
   }
 
+  const handleCopyThread = async () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        debugChatToolsEnabled: isDebugChatToolsEnabled,
+      },
+      chat: {
+        messages,
+        selections,
+        submittedSelectionMessageIds: Array.from(submittedSelectionsRef.current),
+        draftInput: input,
+        plan,
+      },
+      state: {
+        loadingMode: loadingMode ?? null,
+        hasExistingModel,
+        hasCurrentModel: Boolean(currentModel),
+        currentModel: currentModel ?? null,
+        error: error ?? null,
+      },
+    }
+
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+  }
+
   const handleClearChat = () => {
     setMessages([])
     setPlan('')
@@ -331,6 +361,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
   }, [latestAssistantMessage, selections, isLoading])
 
   const canClearChat = messages.length > 0 || plan.length > 0 || input.length > 0
+  const canCopyThread = messages.length > 0 || plan.length > 0
 
   return (
     <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[16px] border border-[#ffc4a6] bg-white/95 shadow-sm">
@@ -347,6 +378,20 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
               Discuss, build, prompt
             </p>
           </div>
+          {isDebugChatToolsEnabled ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopyThread}
+              disabled={!canCopyThread}
+              title="Copy full thread JSON"
+              className="flex h-8 items-center gap-1.5 rounded-[10px] border border-[#ffc4a6] bg-[#fff8f4] px-2.5 text-xs font-bold text-[#ff7a45] shadow-sm transition hover:bg-[#fff0e8] disabled:opacity-40"
+            >
+              <Clipboard className="size-3.5" />
+              Copy Thread
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"

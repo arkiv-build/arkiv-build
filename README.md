@@ -21,6 +21,10 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+### Optional Debug Flag
+
+Set `NEXT_PUBLIC_ENABLE_CHAT_DEBUG_TOOLS=true` to show a development-only `Copy Thread` button in the Arkiv Build Agent panel for exporting full chat JSON during debugging.
+
 ## Why Use It
 
 You can model, connect, and refine Arkiv entities visually, then move to deployment with much faster feedback.
