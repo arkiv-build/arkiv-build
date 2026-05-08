@@ -52,7 +52,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
   }
 
   return (
-    <div className="relative w-[34rem]">
+    <div className="relative w-fit min-w-[34rem] max-w-[60rem]">
       <Handle
         type="target"
         position={Position.Left}

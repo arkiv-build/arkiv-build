@@ -2,10 +2,17 @@ import type { DataModelGenerationMode, GeneratedDataModel } from '@/lib/ai/dataM
 
 export type AssistantMessageRole = 'user' | 'assistant'
 
+export type ChoiceQuestion = {
+  id: string
+  prompt: string
+  options: string[]
+}
+
 export type AssistantMessage = {
   id?: string
   role: AssistantMessageRole
   content: string
+  questions?: ChoiceQuestion[]
 }
 
 export type AssistantRequestMode =
@@ -15,6 +22,8 @@ export type AssistantRequestMode =
 
 export type AssistantDiscussionResponse = {
   message: string
+  readyToBuild?: boolean
+  questions?: ChoiceQuestion[]
   model?: string
   error?: string
 }

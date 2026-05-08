@@ -1,9 +1,13 @@
 'use client'
 
-import { Clipboard, Loader2, Send, Trash2, Wand2, Workflow } from 'lucide-react'
-import { startTransition, useMemo, useRef, useState } from 'react'
+import { Clipboard, Loader2, Send, Trash2, Wand2 } from 'lucide-react'
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import {
+  AssistantQuestionOptions,
+  OTHER_OPTION_VALUE,
+} from '@/components/AssistantQuestionOptions'
 import { MarkdownMessage } from '@/components/MarkdownMessage'
 import {
   buildSchemaGraphFromGeneratedModel,
@@ -27,11 +31,24 @@ type LoadingMode = 'discussIdea' | 'generateSchema' | 'generateImplementationPla
 const createMessage = (
   role: AssistantMessage['role'],
   content: string,
+  questions?: AssistantMessage['questions'],
 ): AssistantMessage => ({
   id: crypto.randomUUID(),
   role,
   content,
+  ...(questions && questions.length > 0 ? { questions } : {}),
 })
+
+const formatSelectionsAsAnswer = (
+  questions: AssistantMessage['questions'],
+  selections: Record<string, string>,
+) => {
+  if (!questions || questions.length === 0) return ''
+  return questions
+    .map((question) => `${question.prompt} ${selections[question.id] ?? ''}`.trim())
+    .filter(Boolean)
+    .join('\n')
+}
 
 const getConversationUseCase = (
   messages: AssistantMessage[],
@@ -64,7 +81,10 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
   const [plan, setPlan] = useState('')
   const [loadingMode, setLoadingMode] = useState<LoadingMode>()
   const [error, setError] = useState<string>()
+  const [selections, setSelections] = useState<Record<string, Record<string, string>>>({})
+  const submittedSelectionsRef = useRef<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const hasExistingModel = useMemo(
     () => hasMeaningfulCanvasModel(nodes, edges),
     [nodes, edges],
@@ -85,17 +105,12 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
     }, 0)
   }
 
-  const handleSend = async () => {
-    const trimmedInput = input.trim()
+  const runDiscussionTurn = async (userText: string) => {
+    const trimmed = userText.trim()
+    if (!trimmed) return
 
-    if (!trimmedInput) {
-      setError('Describe the app idea or ask a follow-up first.')
-      return
-    }
-
-    const nextMessages = [...messages, createMessage('user', trimmedInput)]
+    const nextMessages = [...messages, createMessage('user', trimmed)]
     setMessages(nextMessages)
-    setInput('')
     setError(undefined)
     setLoadingMode('discussIdea')
     scrollMessagesToEnd()
@@ -109,7 +124,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
         body: JSON.stringify({
           mode: 'discussIdea',
           messages: nextMessages,
-          useCase: trimmedInput,
+          useCase: trimmed,
         }),
       })
 
@@ -119,11 +134,18 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
         throw new Error(payload.error || 'Failed to discuss this idea.')
       }
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        createMessage('assistant', payload.message),
-      ])
+      const assistantMessage = createMessage(
+        'assistant',
+        payload.message,
+        payload.questions,
+      )
+      setMessages((currentMessages) => [...currentMessages, assistantMessage])
       scrollMessagesToEnd()
+
+      if (payload.readyToBuild && !payload.questions?.length) {
+        const conversationForBuild = [...nextMessages, assistantMessage]
+        await runBuildSchema(conversationForBuild)
+      }
     } catch (nextError) {
       console.error('[ai:assistant:client] discussion failed', nextError)
       setError(MODEL_UNAVAILABLE_MESSAGE)
@@ -132,11 +154,22 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
     }
   }
 
-  const handleBuildSchema = async () => {
-    const useCase = getConversationUseCase(messages, input)
+  const handleSend = async () => {
+    const trimmedInput = input.trim()
+
+    if (!trimmedInput) {
+      setError('Describe the app idea or ask a follow-up first.')
+      return
+    }
+
+    setInput('')
+    await runDiscussionTurn(trimmedInput)
+  }
+
+  const runBuildSchema = async (conversation: AssistantMessage[]) => {
+    const useCase = getConversationUseCase(conversation, '')
 
     if (!useCase) {
-      setError('Describe the app idea before building a schema.')
       return
     }
 
@@ -153,7 +186,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
         body: JSON.stringify({
           mode: 'generateSchema',
           schemaMode: mode,
-          messages,
+          messages: conversation,
           useCase,
           currentModel,
         }),
@@ -180,7 +213,6 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
           `Built the ${payload.dataModel?.title || 'Arkiv'} schema on the canvas.`,
         ),
       ])
-      setInput('')
       scrollMessagesToEnd()
       onSchemaBuilt?.()
     } catch (nextError) {
@@ -244,7 +276,59 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
     setPlan('')
     setInput('')
     setError(undefined)
+    setSelections({})
+    submittedSelectionsRef.current = new Set()
   }
+
+  const handleOptionSelect = (messageId: string, questionId: string, value: string) => {
+    setSelections((current) => {
+      const existing = current[messageId] ?? {}
+      if (existing[questionId] === value) return current
+      return {
+        ...current,
+        [messageId]: { ...existing, [questionId]: value },
+      }
+    })
+
+    if (value === OTHER_OPTION_VALUE) {
+      window.setTimeout(() => inputRef.current?.focus(), 0)
+    }
+  }
+
+  const latestAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const candidate = messages[i]
+      if (candidate.role === 'assistant' && candidate.questions?.length) {
+        return candidate
+      }
+      if (candidate.role === 'user') break
+    }
+    return undefined
+  }, [messages])
+
+  useEffect(() => {
+    if (!latestAssistantMessage?.id || !latestAssistantMessage.questions) return
+    if (isLoading) return
+    if (submittedSelectionsRef.current.has(latestAssistantMessage.id)) return
+
+    const messageSelections = selections[latestAssistantMessage.id] ?? {}
+    const allAnswered = latestAssistantMessage.questions.every(
+      (question) => Boolean(messageSelections[question.id]),
+    )
+    if (!allAnswered) return
+
+    const hasOther = Object.values(messageSelections).includes(OTHER_OPTION_VALUE)
+    if (hasOther) return
+
+    const answerText = formatSelectionsAsAnswer(
+      latestAssistantMessage.questions,
+      messageSelections,
+    )
+    if (!answerText) return
+
+    submittedSelectionsRef.current.add(latestAssistantMessage.id)
+    void runDiscussionTurn(answerText)
+  }, [latestAssistantMessage, selections, isLoading])
 
   const canClearChat = messages.length > 0 || plan.length > 0 || input.length > 0
 
@@ -265,12 +349,12 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
           </div>
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={handleClearChat}
             disabled={!canClearChat}
             title="Clear chat"
-            className="h-8 rounded-[10px] px-2 text-xs text-gray-500 hover:bg-[#fff0e8] hover:text-[#ff7a45] disabled:opacity-40"
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-[#ffb3ad] bg-[#fff0ee] px-2.5 text-xs font-bold text-[#ff3b30] shadow-sm transition hover:bg-[#ffe1de] hover:text-red-600 disabled:opacity-40"
           >
             <Trash2 className="size-3.5" />
             Clear
@@ -281,27 +365,48 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {messages.length === 0 ? (
           <div className="rounded-[14px] border border-dashed border-[#ffd4bf] bg-[#fff8f4] px-3 py-3 text-xs leading-5 text-gray-600">
-            Start with an app idea. The assistant can shape the Arkiv fit, then build the canvas schema and implementation plan.
+            Describe your app. Discuss the implementation, then get an Arkiv data model and a build-ready prompt.
           </div>
         ) : null}
 
         <div className="flex flex-col gap-2">
-          {messages.map((message) => (
-            <div
-              key={message.id ?? `${message.role}-${message.content}`}
-              className={`max-w-[92%] rounded-[14px] px-3 py-2 text-xs leading-5 ${
-                message.role === 'user'
-                  ? 'ml-auto bg-[#ff7a45] text-white'
-                  : 'mr-auto border border-gray-200 bg-gray-50 text-gray-700'
-              }`}
-            >
-              {message.role === 'assistant' ? (
-                <MarkdownMessage content={message.content} />
-              ) : (
-                <p className="whitespace-pre-wrap break-words">{message.content}</p>
-              )}
-            </div>
-          ))}
+          {messages.map((message) => {
+            const messageId = message.id
+            const messageSelections = messageId
+              ? selections[messageId] ?? {}
+              : {}
+            const isAlreadySubmitted = messageId
+              ? submittedSelectionsRef.current.has(messageId)
+              : false
+
+            return (
+              <div
+                key={messageId ?? `${message.role}-${message.content}`}
+                className={`max-w-[92%] rounded-[14px] px-3 py-2 text-xs leading-5 ${
+                  message.role === 'user'
+                    ? 'ml-auto bg-[#ff7a45] text-white'
+                    : 'mr-auto border border-gray-200 bg-gray-50 text-gray-700'
+                }`}
+              >
+                {message.role === 'assistant' ? (
+                  <MarkdownMessage content={message.content} />
+                ) : (
+                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                )}
+
+                {message.role === 'assistant' && message.questions && messageId ? (
+                  <AssistantQuestionOptions
+                    questions={message.questions}
+                    selections={messageSelections}
+                    disabled={isAlreadySubmitted}
+                    onSelect={(questionId, value) =>
+                      handleOptionSelect(messageId, questionId, value)
+                    }
+                  />
+                ) : null}
+              </div>
+            )
+          })}
           {loadingMode === 'discussIdea' ? (
             <div className="mr-auto flex items-center gap-2 rounded-[14px] border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
               <Loader2 className="size-3.5 animate-spin" />
@@ -341,6 +446,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
         ) : null}
 
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           className="h-20 w-full resize-none rounded-[14px] border border-[#ffc4a6] bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#ff7a45]"
@@ -357,32 +463,19 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
           }}
         />
 
-        <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <Button
             type="button"
             onClick={handleSend}
             disabled={isLoading}
             className="h-10 rounded-[12px] bg-gray-900 px-3 text-xs font-semibold text-white hover:bg-gray-800"
           >
-            {loadingMode === 'discussIdea' ? (
+            {loadingMode === 'discussIdea' || loadingMode === 'generateSchema' ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Send className="size-4" />
             )}
-            Ask
-          </Button>
-          <Button
-            type="button"
-            onClick={handleBuildSchema}
-            disabled={isLoading}
-            className="h-10 rounded-[12px] bg-[#ff7a45] px-3 text-xs font-semibold text-white hover:bg-[#ff692a]"
-          >
-            {loadingMode === 'generateSchema' ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Workflow className="size-4" />
-            )}
-            Build
+            {loadingMode === 'generateSchema' ? 'Building' : 'Ask'}
           </Button>
           <Button
             type="button"

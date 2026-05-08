@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import { ChevronDown, Database, X } from 'lucide-react'
 
 import { compactToggleClassName } from '@/components/entity-node/styles'
@@ -38,7 +39,9 @@ export function EntityHeader({
           <input
             value={data.label}
             onChange={(e) => updateEntityName(nodeId, sanitizeIdentifier(e.target.value))}
-            className="nodrag nopan h-10 w-full min-w-0 border-transparent bg-transparent text-[22px] font-bold uppercase tracking-wider text-gray-900 outline-none placeholder:text-gray-300"
+            size={Math.max(data.label.length || 0, 12)}
+            style={{ fieldSizing: 'content' } as CSSProperties}
+            className="nodrag nopan h-10 min-w-0 border-transparent bg-transparent text-[22px] font-bold uppercase tracking-wider text-gray-900 outline-none placeholder:text-gray-300"
             placeholder="ENTITY TYPE"
             disabled={!isDraft}
           />

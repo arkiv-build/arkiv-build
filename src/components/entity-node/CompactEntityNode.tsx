@@ -19,7 +19,7 @@ export function CompactEntityNode({
   const removeNode = useSchemaStore((s) => s.removeNode)
 
   return (
-    <div className="relative w-[20rem]">
+    <div className="relative w-fit min-w-[20rem] max-w-[40rem]">
       <Handle
         type="target"
         position={Position.Left}
@@ -48,7 +48,7 @@ export function CompactEntityNode({
                 <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-gray-400">
                   Entity
                 </p>
-                <p className="truncate pt-0.5 text-[14px] font-bold uppercase tracking-wide text-gray-900">
+                <p className="whitespace-nowrap pt-0.5 text-[14px] font-bold uppercase tracking-wide text-gray-900">
                   {data.label || 'Untitled Entity'}
                 </p>
                 {data.entityKey ? (

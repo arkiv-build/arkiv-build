@@ -3,6 +3,7 @@ import {
   buildAssistantDiscussionUserPrompt,
 } from '@/lib/ai/assistantPrompts'
 import type { AssistantApiRequest, AssistantMessage } from '@/lib/ai/assistantTypes'
+import { extractBuildSentinel, extractOptionsBlock } from '@/lib/ai/sentinels'
 import {
   applyTokenLimit,
   extractResponseText,
@@ -234,7 +235,7 @@ export async function POST(request: Request) {
       })
     }
 
-    const message = await postTextCompletion({
+    const rawMessage = await postTextCompletion({
       endpointUrl,
       apiKey,
       model,
@@ -247,8 +248,16 @@ export async function POST(request: Request) {
       maxTokens: 1200,
     })
 
+    const optionsResult = extractOptionsBlock(rawMessage)
+    const buildResult = extractBuildSentinel(optionsResult.stripped)
+
+    const hasOpenQuestions = optionsResult.questions.length > 0
+    const readyToBuild = buildResult.readyToBuild && !hasOpenQuestions
+
     return Response.json({
-      message,
+      message: buildResult.stripped,
+      readyToBuild,
+      questions: hasOpenQuestions ? optionsResult.questions : undefined,
       model,
     })
   } catch (error) {

@@ -68,10 +68,10 @@ function SchemaCanvas() {
 
       if (newestAddedNode) {
         const width = newestAddedNode.measured?.width || 544;
-        const centerX = newestAddedNode.position.x + width / 2;
-        const centerY = newestAddedNode.position.y;
+        const centerX = newestAddedNode.position.x + width / 2 + 400;
+        const centerY = newestAddedNode.position.y + 500;
 
-        setCenter(centerX, centerY, { zoom: 0.9, duration: 600 });
+        setCenter(centerX, centerY, { zoom: 0.45, duration: 600 });
         previousNodeIdsRef.current = new Set(allNodes.map((node) => node.id));
         return;
       }
@@ -87,8 +87,8 @@ function SchemaCanvas() {
         maxX = Math.max(maxX, x + w);
       });
 
-      const centerX = minX + (maxX - minX) / 2;
-      setCenter(centerX, minY, { zoom: 0.9, duration: 600 });
+      const centerX = minX + (maxX - minX) / 2 + 400;
+      setCenter(centerX, minY + 500, { zoom: 0.45, duration: 600 });
       previousNodeIdsRef.current = new Set(allNodes.map((node) => node.id));
     }, 50);
     return () => clearTimeout(timeout);
@@ -204,8 +204,8 @@ function SchemaCanvas() {
           <Controls
             showInteractive={false}
             orientation="horizontal"
-            position="top-right"
-            className="!top-[36px] !right-[12rem] !overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
+            position="bottom-center"
+            className="!bottom-6 !left-1/2 !-translate-x-1/2 !overflow-hidden !rounded-[10px] !border !border-gray-200/50 !bg-white/40 !shadow-sm !backdrop-blur-md"
           />
         </ReactFlow>
       </div>
