@@ -30,14 +30,14 @@ export function AssistantQuestionOptions({
         return (
           <div
             key={question.id}
-            className="overflow-hidden rounded-[14px] border border-[#2b3140] bg-[#151922]"
+            className="overflow-hidden rounded-[14px] border border-[#ffd8c3] bg-[#fffaf6]"
           >
-            <div className="flex items-center justify-between border-b border-[#232838] px-3 py-2">
-              <p className="pr-2 text-[11px] font-semibold text-slate-100">
+            <div className="flex items-center justify-between border-b border-[#ffe7db] px-3 py-2">
+              <p className="pr-2 text-[11px] font-semibold text-gray-700">
                 {question.prompt}
               </p>
               {questionCount > 1 ? (
-                <p className="shrink-0 text-[10px] text-slate-400">
+                <p className="shrink-0 text-[10px] text-gray-500">
                   {questionIndex + 1} of {questionCount}
                 </p>
               ) : null}
@@ -57,19 +57,21 @@ export function AssistantQuestionOptions({
                       disabled={isDisabled}
                       onClick={() => onSelect(question.id, option)}
                       className={[
-                        'flex w-full items-center gap-2 rounded-[10px] border px-2.5 py-2 text-left text-xs transition',
+                        'flex w-full items-start gap-2 rounded-[10px] border px-2.5 py-2 text-left text-xs transition',
                         isActive
-                          ? 'border-[#7bc1ff] bg-[#1f2837] text-white'
-                          : 'border-[#2f3648] bg-[#1a1f2b] text-slate-200 hover:border-[#3c4660] hover:bg-[#1f2533]',
+                          ? 'border-[#ffb894] bg-[#fff2ea] text-[#c5531e]'
+                          : 'border-[#ffe2d3] bg-white text-gray-700 hover:border-[#ffcfb6] hover:bg-[#fff7f2]',
                         isDisabled ? 'cursor-not-allowed opacity-50' : '',
                       ].join(' ')}
                     >
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-gray-500">
                         {optionIndex + 1}.
                       </span>
-                      <span className="min-w-0 flex-1 truncate">{option}</span>
+                      <span className="min-w-0 flex-1 whitespace-normal break-words leading-5">
+                        {option}
+                      </span>
                       {isRecommended ? (
-                        <span className="rounded-full border border-[#4f7aa6] bg-[#213247] px-1.5 py-0.5 text-[10px] font-semibold text-[#9fceff]">
+                        <span className="mt-0.5 shrink-0 rounded-full border border-[#ffc7a9] bg-[#fff2ea] px-1.5 py-0.5 text-[10px] font-semibold text-[#e66a39]">
                           Recommended
                         </span>
                       ) : null}

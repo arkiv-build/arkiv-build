@@ -5,10 +5,10 @@ import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trash2,
+  Clipboard,
   ArrowUp,
   PanelLeftClose,
   PanelLeftOpen,
-  PanelRightClose,
 } from "lucide-react";
 import {
   Background,
@@ -26,6 +26,7 @@ import { TopNav } from "@/components/TopNav";
 import { UseCasePromptPanel } from "@/components/UseCasePromptPanel";
 import { Button } from "@/components/ui/button";
 import { EntityNode } from "@/components/EntityNode";
+import { serializeCanvasToGeneratedDataModel } from "@/lib/ai/dataModel";
 import { useArkivStore } from "@/store/useArkivStore";
 import { useSchemaStore } from "@/store/useSchemaStore";
 
@@ -51,6 +52,17 @@ function SchemaCanvas() {
   const { setCenter, getNodes } = useReactFlow();
   const previousNodeIdsRef = useRef<Set<string>>(new Set());
   const nodeIdsKey = useMemo(() => nodes.map((node) => node.id).join('|'), [nodes]);
+  const isDevMode = process.env.NODE_ENV === 'development'
+
+  const handleCopyCanvasModel = async () => {
+    const model = serializeCanvasToGeneratedDataModel(nodes, edges)
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      model,
+    }
+
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+  }
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -139,55 +151,64 @@ function SchemaCanvas() {
         </div>
 
         <div className="pointer-events-auto absolute top-[110px] right-6 z-20">
-          <Button
-            variant="outline"
-            onClick={clearCanvas}
-            className="ml-auto flex h-11 items-center gap-2 rounded-xl border border-[#ffb3ad] bg-[#fff0ee] px-4 font-bold shadow-sm transition hover:bg-[#ffe1de] text-[#ff3b30] hover:text-red-600"
-          >
-            <Trash2 className="size-4" />
-            Clear Canvas
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            {isDevMode ? (
+              <Button
+                variant="outline"
+                onClick={() => void handleCopyCanvasModel()}
+                className="flex h-11 items-center gap-2 rounded-xl border border-[#ffc4a6] bg-[#fff8f4] px-4 font-bold shadow-sm transition hover:bg-[#fff0e8] text-[#ff7a45] hover:text-[#e66a39]"
+              >
+                <Clipboard className="size-4" />
+                Copy Model
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              onClick={clearCanvas}
+              className="flex h-11 items-center gap-2 rounded-xl border border-[#ffb3ad] bg-[#fff0ee] px-4 font-bold shadow-sm transition hover:bg-[#ffe1de] text-[#ff3b30] hover:text-red-600"
+            >
+              <Trash2 className="size-4" />
+              Clear Canvas
+            </Button>
+          </div>
         </div>
 
-        <div className="pointer-events-auto absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
-          <div className="relative flex flex-col items-center">
-            {isAiPanelOpen ? (
-              <Button
-                variant="ghost"
-                className="absolute -top-10 right-3 z-20 h-8 w-8 rounded-xl border border-[#ffbe9f] bg-[#fff5f0] text-[#ff7a45] transition-all duration-300 hover:bg-[#ffe8db] hover:text-[#e66a39]"
-                onClick={() => setIsAiPanelOpen(false)}
-                title="Collapse AI assistant"
-              >
-                <PanelRightClose className="size-4" />
-              </Button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAiPanelOpen(true)}
-                className="group flex h-[7.25rem] w-[min(44rem,calc(100vw-2rem))] flex-col justify-between rounded-[1.6rem] border border-[#ffd8c3] bg-white/95 px-5 py-4 text-left shadow-[0_14px_32px_rgba(15,23,42,0.14)] backdrop-blur-md transition hover:border-[#ffc3a6] hover:bg-white"
-                title="Open AI assistant"
-              >
-                <p className="font-mono text-sm font-normal tracking-wide text-gray-500 md:text-base">
-                  Ask for follow-up changes
-                </p>
+        <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+          <div className="relative h-[50vh] w-[min(44rem,calc(100vw-2rem))]">
+            <button
+              type="button"
+              onClick={() => setIsAiPanelOpen(true)}
+              className={`group pointer-events-auto absolute inset-x-0 bottom-0 flex h-[3.9rem] items-center justify-between rounded-[1.6rem] border border-[#ffd8c3] bg-white/95 px-5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.14)] backdrop-blur-md transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu [will-change:transform,opacity] hover:border-[#ffc3a6] hover:bg-white ${
+                isAiPanelOpen
+                  ? 'pointer-events-none translate-y-2 scale-[0.985] opacity-0'
+                  : 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+              }`}
+              title="Open AI assistant"
+            >
+              <p className="font-mono text-sm font-normal leading-none tracking-wide text-gray-500">
+                Ask for follow-up changes
+              </p>
 
-                <div className="flex items-center justify-end">
-                  <div className="flex size-11 items-center justify-center rounded-full bg-[#f2f4f7] text-gray-500 transition group-hover:bg-[#ffefe5] group-hover:text-[#ff7a45]">
-                    <ArrowUp className="size-5" />
-                  </div>
-                </div>
-              </button>
-            )}
+              <div className="flex size-8 items-center justify-center rounded-full bg-[#f2f4f7] text-gray-500 transition group-hover:bg-[#ffefe5] group-hover:text-[#ff7a45]">
+                <ArrowUp className="size-4" />
+              </div>
+            </button>
 
             <div
-              className={`origin-bottom overflow-hidden transition-all duration-300 ${
+              className={`pointer-events-auto absolute inset-x-0 bottom-0 h-[50vh] origin-bottom overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu [will-change:transform,opacity] ${
                 isAiPanelOpen
-                  ? "h-[60vh] w-[min(56rem,calc(100vw-2rem))] max-h-[60vh] opacity-100 translate-y-0"
-                  : "h-0 w-[min(56rem,calc(100vw-2rem))] opacity-0 translate-y-3"
+                  ? 'scale-y-100 opacity-100 translate-y-0'
+                  : 'pointer-events-none scale-y-95 opacity-0 translate-y-2'
               }`}
             >
-              <div className="h-full w-[min(56rem,calc(100vw-2rem))]">
-                <UseCasePromptPanel onSchemaBuilt={() => setIsAiPanelOpen(false)} />
+              <div className="h-[50vh] w-full">
+                <UseCasePromptPanel
+                  onSchemaBuilt={() => {
+                    setIsAiPanelOpen(false)
+                    setIsMenuOpen(false)
+                  }}
+                  onClose={() => setIsAiPanelOpen(false)}
+                />
               </div>
             </div>
           </div>

@@ -30,6 +30,21 @@ export type AssistantDiscussionResponse = {
 
 export type AssistantSchemaResponse = {
   dataModel?: GeneratedDataModel
+  generationTrace?: {
+    accepted: boolean
+    finalAttempt: number
+    attempts: Array<{
+      attempt: number
+      generatorPrompt: string
+      candidateModel: GeneratedDataModel
+      evaluatorResult?: {
+        accepted: boolean
+        criticalIssues: string[]
+        suggestions: string[]
+        summary: string
+      }
+    }>
+  }
   model?: string
   error?: string
 }
@@ -46,4 +61,5 @@ export type AssistantApiRequest = {
   useCase?: string
   currentModel?: GeneratedDataModel
   schemaMode?: DataModelGenerationMode
+  connectedWalletAddress?: string
 }

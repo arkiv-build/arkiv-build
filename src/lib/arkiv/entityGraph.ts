@@ -176,6 +176,14 @@ const decorateRelationFields = ({
       return field
     }
 
+    if (relationKey === snapshot.entityKey) {
+      return {
+        ...field,
+        edgeId: undefined,
+        relationNodeId: undefined,
+      }
+    }
+
     const sourceId = `entity-${relationKey}`
     const edgeId = createUniquePersistedEdgeId(
       sourceId,

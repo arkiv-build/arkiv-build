@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowUp, Clipboard, Loader2, Trash2, Wand2 } from 'lucide-react'
+import { ArrowUp, Clipboard, Loader2, Trash2, Wand2, X } from 'lucide-react'
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import type {
   AssistantMessage,
   AssistantSchemaResponse,
 } from '@/lib/ai/assistantTypes'
+import { useArkivStore } from '@/store/useArkivStore'
 import { useSchemaStore } from '@/store/useSchemaStore'
 
 const MODEL_UNAVAILABLE_MESSAGE =
@@ -74,15 +75,22 @@ const getConversationUseCase = (
 
 type UseCasePromptPanelProps = {
   onSchemaBuilt?: () => void
+  onClose?: () => void
 }
 
-export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = {}) {
+export function UseCasePromptPanel({
+  onSchemaBuilt,
+  onClose,
+}: UseCasePromptPanelProps = {}) {
+  const connectedWalletAddress = useArkivStore((state) => state.account)
   const nodes = useSchemaStore((state) => state.nodes)
   const edges = useSchemaStore((state) => state.edges)
   const loadGraphOfEntities = useSchemaStore((state) => state.loadGraphOfEntities)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<AssistantMessage[]>([])
   const [plan, setPlan] = useState('')
+  const [generationTrace, setGenerationTrace] =
+    useState<AssistantSchemaResponse['generationTrace']>()
   const [loadingMode, setLoadingMode] = useState<LoadingMode>()
   const [error, setError] = useState<string>()
   const [selections, setSelections] = useState<Record<string, Record<string, string>>>({})
@@ -129,6 +137,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
           mode: 'discussIdea',
           messages: nextMessages,
           useCase: trimmed,
+          connectedWalletAddress,
         }),
       })
 
@@ -193,6 +202,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
           messages: conversation,
           useCase,
           currentModel,
+          connectedWalletAddress,
         }),
       })
 
@@ -201,6 +211,8 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
       if (!response.ok || !payload.dataModel) {
         throw new Error(payload.error || 'Failed to generate a deployable data model.')
       }
+
+      setGenerationTrace(payload.generationTrace)
 
       const { nodes: nextNodes, edges: nextEdges } = buildSchemaGraphFromGeneratedModel(
         payload.dataModel,
@@ -249,6 +261,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
           messages,
           useCase,
           currentModel,
+          connectedWalletAddress,
         }),
       })
 
@@ -288,6 +301,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
         submittedSelectionMessageIds: Array.from(submittedSelectionsRef.current),
         draftInput: input,
         plan,
+        generationTrace: generationTrace ?? null,
       },
       state: {
         loadingMode: loadingMode ?? null,
@@ -304,6 +318,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
   const handleClearChat = () => {
     setMessages([])
     setPlan('')
+    setGenerationTrace(undefined)
     setInput('')
     setError(undefined)
     setSelections({})
@@ -419,6 +434,16 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
             <Trash2 className="size-3.5" />
             Clear
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-800"
+          >
+            <X className="size-3.5" />
+            Close
+          </Button>
         </div>
       </div>
 
@@ -518,7 +543,8 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
             }
             spellCheck={false}
             onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault()
                 void handleSend()
               }
             }}

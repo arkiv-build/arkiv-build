@@ -83,13 +83,18 @@ export const buildImplementationPlanUserPrompt = ({
   messages,
   useCase,
   currentModel,
+  projectAttributeWalletPrefix,
 }: {
   messages: AssistantMessage[]
   useCase: string
   currentModel?: GeneratedDataModel
+  projectAttributeWalletPrefix?: string
 }) =>
   [
     'Create a Codex-ready implementation plan for this Arkiv app idea.',
+    projectAttributeWalletPrefix
+      ? `Project attribute naming requirement for this run: PROJECT_ATTRIBUTE.value must start with "${projectAttributeWalletPrefix}-" and then append a unique app suffix.`
+      : '',
     `Latest user request or app idea:\n${useCase}`,
     messages.length > 0
       ? `Conversation context:\n${messages
@@ -100,4 +105,6 @@ export const buildImplementationPlanUserPrompt = ({
       ? `Current visual schema model:\n${JSON.stringify(currentModel, null, 2)}`
       : 'Current visual schema model: none',
     'Return GitHub-flavored markdown only. Keep it concise but implementation-ready.',
-  ].join('\n\n')
+  ]
+    .filter(Boolean)
+    .join('\n\n')

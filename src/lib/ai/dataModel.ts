@@ -15,9 +15,10 @@ const ENTITY_START_X = 96
 const ENTITY_START_Y = 140
 const ENTITY_NODE_WIDTH = 544
 const ENTITY_NODE_HEIGHT = 110
-const DAGRE_RANK_SEP = 160
-const DAGRE_NODE_SEP = 70
-const DAGRE_EDGE_SEP = 30
+const DAGRE_RANK_SEP = 250
+const DAGRE_NODE_SEP = 130
+const DAGRE_EDGE_SEP = 70
+const LAYOUT_VERTICAL_GAP = 210
 
 const RELATION_COLORS = [
   '#ff7a45',
@@ -386,7 +387,7 @@ const buildGeneratedLayout = (
 
   graph.setGraph({
     rankdir: 'LR',
-    ranker: 'tight-tree',
+    ranker: 'network-simplex',
     nodesep: DAGRE_NODE_SEP,
     ranksep: DAGRE_RANK_SEP,
     edgesep: DAGRE_EDGE_SEP,
@@ -415,7 +416,7 @@ const buildGeneratedLayout = (
 
   dagre.layout(graph)
 
-  return new Map(
+  const initialPositions = new Map(
     entities.map((entity) => {
       const node = graph.node(entity.schemaName)
       const x = node ? node.x - ENTITY_NODE_WIDTH / 2 + ENTITY_START_X : ENTITY_START_X
@@ -423,6 +424,118 @@ const buildGeneratedLayout = (
       return [entity.schemaName, { x, y }]
     }),
   )
+
+  const incomingByNode = new Map<string, string[]>()
+  const outgoingByNode = new Map<string, string[]>()
+
+  entities.forEach((entity) => {
+    incomingByNode.set(entity.schemaName, [])
+    outgoingByNode.set(entity.schemaName, [])
+  })
+
+  relations.forEach((relation) => {
+    const source = lookup.get(relation.sourceEntity.trim().toLowerCase())
+    const target = lookup.get(relation.targetEntity.trim().toLowerCase())
+
+    if (!source || !target || source.schemaName === target.schemaName) {
+      return
+    }
+
+    incomingByNode.get(target.schemaName)?.push(source.schemaName)
+    outgoingByNode.get(source.schemaName)?.push(target.schemaName)
+  })
+
+  const sortedByX = [...entities].sort(
+    (left, right) =>
+      (initialPositions.get(left.schemaName)?.x ?? 0) -
+      (initialPositions.get(right.schemaName)?.x ?? 0),
+  )
+
+  const rankGroups: string[][] = []
+  const X_EPSILON = 1
+
+  sortedByX.forEach((entity) => {
+    const x = initialPositions.get(entity.schemaName)?.x ?? 0
+    const lastGroup = rankGroups[rankGroups.length - 1]
+
+    if (!lastGroup) {
+      rankGroups.push([entity.schemaName])
+      return
+    }
+
+    const lastGroupX = initialPositions.get(lastGroup[0])?.x ?? 0
+    if (Math.abs(x - lastGroupX) <= X_EPSILON) {
+      lastGroup.push(entity.schemaName)
+      return
+    }
+
+    rankGroups.push([entity.schemaName])
+  })
+
+  const positionY = new Map(
+    entities.map((entity) => [entity.schemaName, initialPositions.get(entity.schemaName)?.y ?? 0]),
+  )
+
+  const sortByBarycenter = ({
+    nodes,
+    neighborsOf,
+  }: {
+    nodes: string[]
+    neighborsOf: Map<string, string[]>
+  }) =>
+    [...nodes].sort((left, right) => {
+      const leftNeighbors = neighborsOf.get(left) ?? []
+      const rightNeighbors = neighborsOf.get(right) ?? []
+
+      const leftCenter =
+        leftNeighbors.length > 0
+          ? leftNeighbors.reduce((sum, node) => sum + (positionY.get(node) ?? 0), 0) /
+            leftNeighbors.length
+          : positionY.get(left) ?? 0
+      const rightCenter =
+        rightNeighbors.length > 0
+          ? rightNeighbors.reduce((sum, node) => sum + (positionY.get(node) ?? 0), 0) /
+            rightNeighbors.length
+          : positionY.get(right) ?? 0
+
+      if (leftCenter !== rightCenter) {
+        return leftCenter - rightCenter
+      }
+
+      return left.localeCompare(right)
+    })
+
+  for (let sweep = 0; sweep < 2; sweep += 1) {
+    for (let rank = 1; rank < rankGroups.length; rank += 1) {
+      rankGroups[rank] = sortByBarycenter({
+        nodes: rankGroups[rank],
+        neighborsOf: incomingByNode,
+      })
+    }
+
+    for (let rank = rankGroups.length - 2; rank >= 0; rank -= 1) {
+      rankGroups[rank] = sortByBarycenter({
+        nodes: rankGroups[rank],
+        neighborsOf: outgoingByNode,
+      })
+    }
+
+    rankGroups.forEach((group, rank) => {
+      const x = initialPositions.get(group[0])?.x ?? ENTITY_START_X + rank * DAGRE_RANK_SEP
+      const centroidY =
+        group.reduce((sum, node) => sum + (positionY.get(node) ?? 0), 0) /
+        Math.max(group.length, 1)
+      const startY = centroidY - ((group.length - 1) * LAYOUT_VERTICAL_GAP) / 2
+
+      group.forEach((nodeName, index) => {
+        const y = startY + index * LAYOUT_VERTICAL_GAP
+        positionY.set(nodeName, y)
+        initialPositions.set(nodeName, { x, y })
+      })
+    })
+  }
+
+  return initialPositions
 }
 
 export const buildSchemaGraphFromGeneratedModel = (
@@ -496,6 +609,7 @@ export const buildSchemaGraphFromGeneratedModel = (
     })
 
   let relationColorIndex = 0
+  const parallelRelationOffsets = new Map<string, number>()
 
   model.relations.forEach((relation) => {
     const sourceEntity = lookup.get(relation.sourceEntity.trim().toLowerCase())
@@ -512,15 +626,19 @@ export const buildSchemaGraphFromGeneratedModel = (
       return
     }
 
+    const isSelfRelation = sourceNode.id === targetNode.id
+
     const relationFieldName =
       sanitizeIdentifier(relation.fieldName) ||
       `${sourceEntity.schemaName.charAt(0).toLowerCase()}${sourceEntity.schemaName.slice(1)}Id`
-    const edgeId = createUniqueEdgeId(
-      sourceNode.id,
-      targetNode.id,
-      relationFieldName,
-      seenEdgeIds,
-    )
+    const edgeId = isSelfRelation
+      ? undefined
+      : createUniqueEdgeId(
+          sourceNode.id,
+          targetNode.id,
+          relationFieldName,
+          seenEdgeIds,
+        )
 
     const existingField = targetNode.data.fields.find(
       (field) => field.name.toLowerCase() === relationFieldName.toLowerCase(),
@@ -530,17 +648,28 @@ export const buildSchemaGraphFromGeneratedModel = (
       existingField.type = 'indexedString'
       existingField.value = ''
       existingField.edgeId = edgeId
-      existingField.relationNodeId = sourceNode.id
+      existingField.relationNodeId = isSelfRelation ? undefined : sourceNode.id
     } else {
       targetNode.data.fields.push({
         ...createField(relationFieldName, 'indexedString', ''),
-        edgeId,
-        relationNodeId: sourceNode.id,
+        ...(isSelfRelation
+          ? {}
+          : {
+              edgeId,
+              relationNodeId: sourceNode.id,
+            }),
       })
     }
 
+    if (isSelfRelation || !edgeId) {
+      return
+    }
+
     const relationColor = pickRelationColor(relationColorIndex)
-    const pathOffset = 16 + (relationColorIndex % 6) * 14
+    const parallelKey = `${sourceNode.id}::${targetNode.id}`
+    const parallelOffsetIndex = parallelRelationOffsets.get(parallelKey) ?? 0
+    parallelRelationOffsets.set(parallelKey, parallelOffsetIndex + 1)
+    const pathOffset = 24 + parallelOffsetIndex * 12
     relationColorIndex += 1
 
     edges.push({

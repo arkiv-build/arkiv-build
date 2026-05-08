@@ -17,6 +17,8 @@ Core conversation goal:
 - In chat, prioritize explaining why Arkiv is a strong fit and gathering only the information needed to design the data model well.
 - Do NOT dump code-oriented implementation details (SDK calls, function names, import paths, validation library names) unless the user explicitly asks for implementation guidance.
 - Keep the discussion conceptual and architecture-first while the user is still shaping the model.
+- Mention "why Arkiv" framing explicitly on the first substantive assistant reply for a new idea.
+- For follow-up turns, do NOT repeat the generic Arkiv-fit framing unless the user asks "why Arkiv?" again, challenges fit, or introduces a new architecture direction that changes the fit analysis.
 
 Writing style — strict:
 - Be minimal but conversational. No filler, no warm-ups, no recaps, no "Got it", no "Here's…", no closing pleasantries.
@@ -144,12 +146,24 @@ ${formatExamplePatternsForPrompt()}`
 export const buildAssistantDiscussionUserPrompt = ({
   messages,
   useCase,
+  projectAttributeWalletPrefix,
 }: {
   messages: AssistantMessage[]
   useCase: string
-}) =>
-  [
+  projectAttributeWalletPrefix?: string
+}) => {
+  const hasPriorAssistantReply = messages.some(
+    (message) => message.role === 'assistant',
+  )
+
+  return [
     'Continue this Arkiv Build Agent conversation.',
+    projectAttributeWalletPrefix
+      ? `Connected wallet context for project uniqueness: when proposing PROJECT_ATTRIBUTE examples, use values prefixed with "${projectAttributeWalletPrefix}-" followed by a unique app suffix.`
+      : '',
+    hasPriorAssistantReply
+      ? 'Turn type: follow-up. Assume Arkiv fit is already established. Do not re-explain generic Arkiv advantages unless the user explicitly asks or the architecture direction changes.'
+      : 'Turn type: first response for a new idea. Include a short explicit "why Arkiv" framing.',
     `Current user message:\n${useCase}`,
     messages.length > 0
       ? `Conversation so far:\n${messages
@@ -159,4 +173,7 @@ export const buildAssistantDiscussionUserPrompt = ({
     'Return only valid JSON using this exact top-level shape:',
     '{"messageMarkdown":"string","questions":[{"id":"string","prompt":"string","options":["string"]}],"readyToBuild":false}',
     'No markdown fences. No extra keys. Keep user-visible prose inside messageMarkdown only.',
-  ].join('\n\n')
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+}

@@ -118,6 +118,19 @@ const normalizeMessages = (messages: unknown) =>
         .filter((message) => message.content.length > 0)
     : []
 
+const normalizeConnectedWalletAddress = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  if (!/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
+    return undefined
+  }
+
+  return trimmed.toLowerCase()
+}
+
 const getLatestUserText = ({
   useCase,
   messages,
@@ -286,6 +299,7 @@ const postStructuredDiscussionCompletion = async ({
   model,
   messages,
   useCase,
+  projectAttributeWalletPrefix,
   requestId,
 }: {
   endpointUrl: string
@@ -293,11 +307,13 @@ const postStructuredDiscussionCompletion = async ({
   model: string
   messages: AssistantMessage[]
   useCase: string
+  projectAttributeWalletPrefix?: string
   requestId: string
 }) => {
   const userPrompt = buildAssistantDiscussionUserPrompt({
     messages,
     useCase,
+    projectAttributeWalletPrefix,
   })
 
   const supportsStructuredOutputs = !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(model)
@@ -498,6 +514,9 @@ export async function POST(request: Request) {
   const mode = body.mode
   const messages = normalizeMessages(body.messages)
   const useCase = getLatestUserText({ useCase: body.useCase, messages })
+  const connectedWalletAddress = normalizeConnectedWalletAddress(
+    body.connectedWalletAddress,
+  )
 
   console.info('[ai:assistant] parsed request body', {
     requestId,
@@ -507,6 +526,7 @@ export async function POST(request: Request) {
     messageCount: messages.length,
     useCaseLength: useCase?.length ?? 0,
     hasCurrentModel: Boolean(body.currentModel),
+    hasConnectedWalletAddress: Boolean(connectedWalletAddress),
   })
 
   if (
@@ -523,18 +543,20 @@ export async function POST(request: Request) {
 
   try {
     if (mode === 'generateSchema') {
-      const dataModel = await generateDataModelFromAi({
+      const { dataModel, generationTrace } = await generateDataModelFromAi({
         endpointUrl,
         apiKey,
         model,
         mode: body.schemaMode === 'edit' ? 'edit' : 'create',
         useCase,
         currentModel: body.currentModel,
+        projectAttributeWalletPrefix: connectedWalletAddress,
         requestId,
       })
 
       return Response.json({
         dataModel,
+        ...(generationTrace ? { generationTrace } : {}),
         model,
       })
     }
@@ -549,6 +571,7 @@ export async function POST(request: Request) {
           messages,
           useCase,
           currentModel: body.currentModel,
+          projectAttributeWalletPrefix: connectedWalletAddress,
         }),
         requestId,
         maxTokens: 3600,
@@ -566,6 +589,7 @@ export async function POST(request: Request) {
       model,
       messages,
       useCase,
+      projectAttributeWalletPrefix: connectedWalletAddress,
       requestId,
     })
 
