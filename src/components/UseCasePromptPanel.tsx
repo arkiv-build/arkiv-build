@@ -1,6 +1,6 @@
 'use client'
 
-import { Clipboard, Loader2, Send, Wand2, Workflow } from 'lucide-react'
+import { Clipboard, Loader2, Send, Trash2, Wand2, Workflow } from 'lucide-react'
 import { startTransition, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -51,7 +51,11 @@ const getConversationUseCase = (
   return parts.join('\n\n')
 }
 
-export function UseCasePromptPanel() {
+type UseCasePromptPanelProps = {
+  onSchemaBuilt?: () => void
+}
+
+export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = {}) {
   const nodes = useSchemaStore((state) => state.nodes)
   const edges = useSchemaStore((state) => state.edges)
   const loadGraphOfEntities = useSchemaStore((state) => state.loadGraphOfEntities)
@@ -178,6 +182,7 @@ export function UseCasePromptPanel() {
       ])
       setInput('')
       scrollMessagesToEnd()
+      onSchemaBuilt?.()
     } catch (nextError) {
       console.error('[ai:assistant:client] schema generation failed', nextError)
       setError(MODEL_UNAVAILABLE_MESSAGE)
@@ -234,6 +239,15 @@ export function UseCasePromptPanel() {
     await navigator.clipboard.writeText(plan)
   }
 
+  const handleClearChat = () => {
+    setMessages([])
+    setPlan('')
+    setInput('')
+    setError(undefined)
+  }
+
+  const canClearChat = messages.length > 0 || plan.length > 0 || input.length > 0
+
   return (
     <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[16px] border border-[#ffc4a6] bg-white/95 shadow-sm">
       <div className="shrink-0 border-b border-[#ffe0d1] px-4 py-3">
@@ -241,14 +255,26 @@ export function UseCasePromptPanel() {
           <div className="flex size-8 items-center justify-center rounded-[10px] bg-[#fff0e8] text-[#ff7a45]">
             <Wand2 className="size-4" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-bold text-gray-950">
               Arkiv Build Agent
             </h2>
             <p className="truncate text-xs text-gray-500">
-              Discuss, model, plan
+              Discuss, build, prompt
             </p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClearChat}
+            disabled={!canClearChat}
+            title="Clear chat"
+            className="h-8 rounded-[10px] px-2 text-xs text-gray-500 hover:bg-[#fff0e8] hover:text-[#ff7a45] disabled:opacity-40"
+          >
+            <Trash2 className="size-3.5" />
+            Clear
+          </Button>
         </div>
       </div>
 
@@ -288,7 +314,7 @@ export function UseCasePromptPanel() {
         {plan ? (
           <div className="mt-3 overflow-hidden rounded-[14px] border border-[#ffd4bf] bg-[#fffaf7]">
             <div className="flex items-center justify-between border-b border-[#ffe0d1] px-3 py-2">
-              <p className="text-xs font-bold text-gray-800">Implementation plan</p>
+              <p className="text-xs font-bold text-gray-800">Implementation prompt</p>
               <Button
                 type="button"
                 variant="ghost"
@@ -356,7 +382,7 @@ export function UseCasePromptPanel() {
             ) : (
               <Workflow className="size-4" />
             )}
-            Model
+            Build
           </Button>
           <Button
             type="button"
@@ -370,7 +396,7 @@ export function UseCasePromptPanel() {
             ) : (
               <Clipboard className="size-4" />
             )}
-            Plan
+            Prompt
           </Button>
         </div>
       </div>

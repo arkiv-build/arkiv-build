@@ -143,10 +143,19 @@
   }
 
   .schema-flow .react-flow__controls-button {
+    width: 44px;
+    height: 44px;
     border-color: color-mix(in oklab, var(--border) 70%, white);
     background: color-mix(in oklab, white 82%, transparent);
     color: color-mix(in oklab, var(--foreground) 82%, transparent);
     backdrop-filter: blur(16px);
+  }
+
+  .schema-flow .react-flow__controls-button svg {
+    width: 16px;
+    height: 16px;
+    max-width: 16px;
+    max-height: 16px;
   }
 
   .schema-flow .react-flow__controls-button:hover {

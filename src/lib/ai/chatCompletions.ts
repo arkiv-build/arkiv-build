@@ -7,6 +7,7 @@ type ChatCompletionMessageContentPart = {
 
 export type ChatCompletionResponse = {
   choices?: Array<{
+    finish_reason?: string
     message?: {
       content?: string | Record<string, unknown> | ChatCompletionMessageContentPart[]
     }

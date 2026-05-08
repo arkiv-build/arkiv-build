@@ -71,7 +71,7 @@ export const generateDataModelFromAi = async ({
   applyTokenLimit({
     body: requestBody,
     endpointUrl,
-    maxTokens: 2800,
+    maxTokens: 6000,
   })
 
   if (supportsStructuredOutputs) {
@@ -122,9 +122,11 @@ export const generateDataModelFromAi = async ({
   }
 
   const content = extractResponseText(payload)
+  const finishReason = payload.choices?.[0]?.finish_reason
   console.info('[ai:data-model] upstream content extracted', {
     requestId,
     contentLength: content.length,
+    finishReason,
   })
 
   let parsed: unknown
@@ -135,8 +137,15 @@ export const generateDataModelFromAi = async ({
     console.warn('[ai:data-model] initial JSON parse failed', {
       requestId,
       error: getErrorMessage(parseError, 'Unknown parse error.'),
+      finishReason,
       willAttemptRepair: !supportsStructuredOutputs,
     })
+
+    if (finishReason === 'length') {
+      throw new Error(
+        'The schema response was too large and got truncated. Try simplifying the use case or splitting it into smaller pieces.',
+      )
+    }
 
     if (supportsStructuredOutputs) {
       throw parseError
@@ -167,7 +176,7 @@ export const generateDataModelFromAi = async ({
     applyTokenLimit({
       body: repairRequestBody,
       endpointUrl,
-      maxTokens: 2800,
+      maxTokens: 6000,
     })
 
     const repairResponse = await postToChatCompletions({

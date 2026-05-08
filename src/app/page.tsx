@@ -133,7 +133,7 @@ function SchemaCanvas() {
           <Button
             variant="outline"
             onClick={clearCanvas}
-            className="ml-auto flex h-10 items-center gap-2 rounded-xl border-red-200 bg-red-50 px-4 font-bold shadow-sm transition hover:bg-red-100 text-[#ff3b30] hover:text-red-600"
+            className="ml-auto flex h-11 items-center gap-2 rounded-xl border border-[#ffb3ad] bg-[#fff0ee] px-4 font-bold shadow-sm transition hover:bg-[#ffe1de] text-[#ff3b30] hover:text-red-600"
           >
             <Trash2 className="size-4" />
             Clear Canvas
@@ -145,7 +145,7 @@ function SchemaCanvas() {
               className={`absolute z-20 flex items-center justify-center rounded-xl transition-all duration-300 ${
                 isAiPanelOpen
                   ? "h-8 w-8 top-3 right-[25rem] border border-[#ffbe9f] bg-[#fff5f0] text-[#ff7a45] hover:bg-[#ffe8db] hover:text-[#e66a39]"
-                  : "h-11 w-11 top-0 right-0 border border-[#ffbe9f] bg-white text-[#ff7a45] shadow-sm hover:bg-[#fff5f0] hover:text-[#e66a39]"
+                  : "h-11 w-11 top-0 right-0 border border-[#ffbe9f] bg-[#fff5f0] text-[#ff7a45] shadow-sm hover:bg-[#ffe8db] hover:text-[#e66a39]"
               }`}
               onClick={() => setIsAiPanelOpen((open) => !open)}
               title={isAiPanelOpen ? "Collapse AI assistant" : "Open AI assistant"}
@@ -165,7 +165,7 @@ function SchemaCanvas() {
               }`}
             >
               <div className="h-full w-[24rem]">
-                <UseCasePromptPanel />
+                <UseCasePromptPanel onSchemaBuilt={() => setIsAiPanelOpen(false)} />
               </div>
             </div>
           </div>
@@ -205,7 +205,7 @@ function SchemaCanvas() {
             showInteractive={false}
             orientation="horizontal"
             position="top-right"
-            className="!top-[117px] !right-[11.5rem] !overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
+            className="!top-[36px] !right-[12rem] !overflow-hidden !rounded-[12px] !border !border-gray-200 !bg-white !shadow-sm"
           />
         </ReactFlow>
       </div>

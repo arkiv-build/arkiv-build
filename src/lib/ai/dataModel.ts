@@ -1,3 +1,6 @@
+import dagre from 'dagre'
+import { MarkerType } from '@xyflow/react'
+
 import type { SchemaEdge, SchemaNode } from '@/store/useSchemaStore'
 import type {
   EntityDataField,
@@ -10,8 +13,27 @@ import { sanitizeIdentifier } from '@/lib/arkiv/schema'
 const EXPIRATION_DURATIONS: ExpirationDuration[] = ['1d', '7d', '30d', '90d', '365d']
 const ENTITY_START_X = 96
 const ENTITY_START_Y = 140
-const ENTITY_HORIZONTAL_GAP = 600
-const ENTITY_VERTICAL_GAP = 320
+const ENTITY_NODE_WIDTH = 544
+const ENTITY_NODE_HEIGHT = 110
+const DAGRE_RANK_SEP = 160
+const DAGRE_NODE_SEP = 70
+const DAGRE_EDGE_SEP = 30
+
+const RELATION_COLORS = [
+  '#ff7a45',
+  '#0ea5e9',
+  '#10b981',
+  '#a855f7',
+  '#ec4899',
+  '#f59e0b',
+  '#14b8a6',
+  '#6366f1',
+  '#ef4444',
+  '#84cc16',
+] as const
+
+const pickRelationColor = (index: number) =>
+  RELATION_COLORS[index % RELATION_COLORS.length]
 
 export type GeneratedIndexedAttribute = {
   name: string
@@ -355,68 +377,30 @@ const buildEntityLookup = (entities: NamedGeneratedEntity[]) => {
   return lookup
 }
 
-const calculateEntityLevels = (
+const buildGeneratedLayout = (
   entities: NamedGeneratedEntity[],
   relations: GeneratedRelation[],
 ) => {
   const lookup = buildEntityLookup(entities)
-  const incomingRelations = new Map<string, string[]>()
-  const levels = new Map<string, number>()
+  const graph = new dagre.graphlib.Graph({ multigraph: false, compound: false })
 
-  relations.forEach((relation) => {
-    const source = lookup.get(relation.sourceEntity.trim().toLowerCase())
-    const target = lookup.get(relation.targetEntity.trim().toLowerCase())
-
-    if (!source || !target) {
-      return
-    }
-
-    const currentParents = incomingRelations.get(target.schemaName) ?? []
-    currentParents.push(source.schemaName)
-    incomingRelations.set(target.schemaName, currentParents)
+  graph.setGraph({
+    rankdir: 'LR',
+    ranker: 'tight-tree',
+    nodesep: DAGRE_NODE_SEP,
+    ranksep: DAGRE_RANK_SEP,
+    edgesep: DAGRE_EDGE_SEP,
+    marginx: 0,
+    marginy: 0,
   })
-
-  const getLevel = (schemaName: string, trail = new Set<string>()): number => {
-    const existingLevel = levels.get(schemaName)
-    if (existingLevel !== undefined) {
-      return existingLevel
-    }
-
-    if (trail.has(schemaName)) {
-      return 0
-    }
-
-    const parentNames = incomingRelations.get(schemaName) ?? []
-    if (parentNames.length === 0) {
-      levels.set(schemaName, 0)
-      return 0
-    }
-
-    const nextTrail = new Set(trail)
-    nextTrail.add(schemaName)
-
-    const level =
-      Math.max(...parentNames.map((parentName) => getLevel(parentName, nextTrail))) + 1
-
-    levels.set(schemaName, level)
-    return level
-  }
+  graph.setDefaultEdgeLabel(() => ({}))
 
   entities.forEach((entity) => {
-    getLevel(entity.schemaName)
+    graph.setNode(entity.schemaName, {
+      width: ENTITY_NODE_WIDTH,
+      height: ENTITY_NODE_HEIGHT,
+    })
   })
-
-  return levels
-}
-
-const calculateDescendantCounts = (
-  entities: NamedGeneratedEntity[],
-  relations: GeneratedRelation[],
-) => {
-  const lookup = buildEntityLookup(entities)
-  const childMap = new Map<string, Set<string>>(
-    entities.map((entity) => [entity.schemaName, new Set<string>()]),
-  )
 
   relations.forEach((relation) => {
     const source = lookup.get(relation.sourceEntity.trim().toLowerCase())
@@ -426,148 +410,18 @@ const calculateDescendantCounts = (
       return
     }
 
-    childMap.get(source.schemaName)?.add(target.schemaName)
+    graph.setEdge(source.schemaName, target.schemaName)
   })
 
-  const memo = new Map<string, number>()
-
-  const getDescendantCount = (
-    schemaName: string,
-    trail: Set<string> = new Set<string>(),
-  ): number => {
-    const existing = memo.get(schemaName)
-    if (existing !== undefined) {
-      return existing
-    }
-
-    if (trail.has(schemaName)) {
-      return 0
-    }
-
-    const nextTrail = new Set(trail)
-    nextTrail.add(schemaName)
-
-    const descendants = childMap.get(schemaName) ?? new Set<string>()
-
-    const total =
-      Array.from(descendants).reduce(
-        (sum, childName) => sum + 1 + getDescendantCount(childName, nextTrail),
-        0,
-      )
-
-    memo.set(schemaName, total)
-    return total
-  }
-
-  entities.forEach((entity) => {
-    getDescendantCount(entity.schemaName)
-  })
-
-  return memo
-}
-
-const calculateIncomingParents = (
-  entities: NamedGeneratedEntity[],
-  relations: GeneratedRelation[],
-) => {
-  const lookup = buildEntityLookup(entities)
-  const parentMap = new Map<string, string[]>(entities.map((entity) => [entity.schemaName, []]))
-
-  relations.forEach((relation) => {
-    const source = lookup.get(relation.sourceEntity.trim().toLowerCase())
-    const target = lookup.get(relation.targetEntity.trim().toLowerCase())
-
-    if (!source || !target) {
-      return
-    }
-
-    parentMap.get(target.schemaName)?.push(source.schemaName)
-  })
-
-  return parentMap
-}
-
-const buildGeneratedLayout = (
-  entities: NamedGeneratedEntity[],
-  relations: GeneratedRelation[],
-  levels: Map<string, number>,
-) => {
-  const levelGroups = new Map<number, NamedGeneratedEntity[]>()
-  const descendantCounts = calculateDescendantCounts(entities, relations)
-  const parentMap = calculateIncomingParents(entities, relations)
-  const yPositions = new Map<string, number>()
-
-  entities.forEach((entity) => {
-    const level = levels.get(entity.schemaName) ?? 0
-    if (!levelGroups.has(level)) {
-      levelGroups.set(level, [])
-    }
-    levelGroups.get(level)?.push(entity)
-  })
-
-  Array.from(levelGroups.entries())
-    .sort(([leftLevel], [rightLevel]) => leftLevel - rightLevel)
-    .forEach(([level, levelEntities]) => {
-      const orderedEntities = [...levelEntities].sort((left, right) => {
-        const leftParents = parentMap.get(left.schemaName) ?? []
-        const rightParents = parentMap.get(right.schemaName) ?? []
-
-        const leftAnchor =
-          leftParents.length > 0
-            ? leftParents.reduce((sum, parentName) => sum + (yPositions.get(parentName) ?? ENTITY_START_Y), 0) /
-              leftParents.length
-            : ENTITY_START_Y
-        const rightAnchor =
-          rightParents.length > 0
-            ? rightParents.reduce((sum, parentName) => sum + (yPositions.get(parentName) ?? ENTITY_START_Y), 0) /
-              rightParents.length
-            : ENTITY_START_Y
-
-        const anchorDiff = leftAnchor - rightAnchor
-        if (Math.abs(anchorDiff) > 1) {
-          return anchorDiff
-        }
-
-        const descendantDiff =
-          (descendantCounts.get(right.schemaName) ?? 0) -
-          (descendantCounts.get(left.schemaName) ?? 0)
-        if (descendantDiff !== 0) {
-          return descendantDiff
-        }
-
-        return left.schemaName.localeCompare(right.schemaName)
-      })
-
-      orderedEntities.forEach((entity, index) => {
-        const parentNames = parentMap.get(entity.schemaName) ?? []
-        const anchoredY =
-          parentNames.length > 0
-            ? parentNames.reduce((sum, parentName) => sum + (yPositions.get(parentName) ?? ENTITY_START_Y), 0) /
-              parentNames.length
-            : ENTITY_START_Y + index * ENTITY_VERTICAL_GAP
-        const previousEntity = orderedEntities[index - 1]
-        const minimumY = previousEntity
-          ? (yPositions.get(previousEntity.schemaName) ?? ENTITY_START_Y) + ENTITY_VERTICAL_GAP
-          : ENTITY_START_Y
-
-        yPositions.set(entity.schemaName, Math.max(anchoredY, minimumY))
-      })
-
-      if (level === 0 && orderedEntities.length > 0) {
-        orderedEntities.forEach((entity, index) => {
-          yPositions.set(entity.schemaName, ENTITY_START_Y + index * ENTITY_VERTICAL_GAP)
-        })
-      }
-    })
+  dagre.layout(graph)
 
   return new Map(
-    entities.map((entity) => [
-      entity.schemaName,
-      {
-        x: ENTITY_START_X + (levels.get(entity.schemaName) ?? 0) * ENTITY_HORIZONTAL_GAP,
-        y: yPositions.get(entity.schemaName) ?? ENTITY_START_Y,
-      },
-    ]),
+    entities.map((entity) => {
+      const node = graph.node(entity.schemaName)
+      const x = node ? node.x - ENTITY_NODE_WIDTH / 2 + ENTITY_START_X : ENTITY_START_X
+      const y = node ? node.y - ENTITY_NODE_HEIGHT / 2 + ENTITY_START_Y : ENTITY_START_Y
+      return [entity.schemaName, { x, y }]
+    }),
   )
 }
 
@@ -576,8 +430,7 @@ export const buildSchemaGraphFromGeneratedModel = (
 ): { nodes: SchemaNode[]; edges: SchemaEdge[] } => {
   const namedEntities = dedupeEntityNames(model.entities)
   const lookup = buildEntityLookup(namedEntities)
-  const levels = calculateEntityLevels(namedEntities, model.relations)
-  const layout = buildGeneratedLayout(namedEntities, model.relations, levels)
+  const layout = buildGeneratedLayout(namedEntities, model.relations)
 
   const nodes: SchemaNode[] = []
   const edges: SchemaEdge[] = []
@@ -642,6 +495,8 @@ export const buildSchemaGraphFromGeneratedModel = (
       nodeMap.set(entity.schemaName, node)
     })
 
+  let relationColorIndex = 0
+
   model.relations.forEach((relation) => {
     const sourceEntity = lookup.get(relation.sourceEntity.trim().toLowerCase())
     const targetEntity = lookup.get(relation.targetEntity.trim().toLowerCase())
@@ -684,6 +539,10 @@ export const buildSchemaGraphFromGeneratedModel = (
       })
     }
 
+    const relationColor = pickRelationColor(relationColorIndex)
+    const pathOffset = 16 + (relationColorIndex % 6) * 14
+    relationColorIndex += 1
+
     edges.push({
       id: edgeId,
       source: sourceNode.id,
@@ -691,7 +550,18 @@ export const buildSchemaGraphFromGeneratedModel = (
       sourceHandle: undefined,
       targetHandle: undefined,
       animated: true,
-    })
+      style: { stroke: relationColor, strokeWidth: 2.5 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+        color: relationColor,
+      },
+      pathOptions: {
+        offset: pathOffset,
+        borderRadius: 12,
+      },
+    } as SchemaEdge)
   })
 
   if (selectedNodeId) {
