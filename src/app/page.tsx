@@ -5,10 +5,10 @@ import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trash2,
+  ArrowUp,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
-  Wand2,
 } from "lucide-react";
 import {
   Background,
@@ -104,6 +104,15 @@ function SchemaCanvas() {
       <TopNav />
 
       <div className="pointer-events-none absolute inset-0 z-10">
+        {isAiPanelOpen ? (
+          <button
+            type="button"
+            aria-label="Close AI assistant"
+            className="pointer-events-auto absolute inset-0 z-10 cursor-default"
+            onClick={() => setIsAiPanelOpen(false)}
+          />
+        ) : null}
+
         <div className="absolute top-[110px] bottom-6 left-6 flex min-h-0 flex-col transition-all duration-300">
           <Button
             variant={isMenuOpen ? "ghost" : "outline"}
@@ -129,7 +138,7 @@ function SchemaCanvas() {
           </div>
         </div>
 
-        <div className="pointer-events-auto absolute top-[110px] bottom-6 right-6 z-20 flex flex-col items-end gap-4">
+        <div className="pointer-events-auto absolute top-[110px] right-6 z-20">
           <Button
             variant="outline"
             onClick={clearCanvas}
@@ -138,33 +147,46 @@ function SchemaCanvas() {
             <Trash2 className="size-4" />
             Clear Canvas
           </Button>
+        </div>
 
-          <div className="relative flex-1 min-h-0">
-            <Button
-              variant={isAiPanelOpen ? "ghost" : "outline"}
-              className={`absolute z-20 flex items-center justify-center rounded-xl transition-all duration-300 ${
-                isAiPanelOpen
-                  ? "h-8 w-8 top-3 right-[25rem] border border-[#ffbe9f] bg-[#fff5f0] text-[#ff7a45] hover:bg-[#ffe8db] hover:text-[#e66a39]"
-                  : "h-11 w-11 top-0 right-0 border border-[#ffbe9f] bg-[#fff5f0] text-[#ff7a45] shadow-sm hover:bg-[#ffe8db] hover:text-[#e66a39]"
-              }`}
-              onClick={() => setIsAiPanelOpen((open) => !open)}
-              title={isAiPanelOpen ? "Collapse AI assistant" : "Open AI assistant"}
-            >
-              {isAiPanelOpen ? (
+        <div className="pointer-events-auto absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+          <div className="relative flex flex-col items-center">
+            {isAiPanelOpen ? (
+              <Button
+                variant="ghost"
+                className="absolute -top-10 right-3 z-20 h-8 w-8 rounded-xl border border-[#ffbe9f] bg-[#fff5f0] text-[#ff7a45] transition-all duration-300 hover:bg-[#ffe8db] hover:text-[#e66a39]"
+                onClick={() => setIsAiPanelOpen(false)}
+                title="Collapse AI assistant"
+              >
                 <PanelRightClose className="size-4" />
-              ) : (
-                <Wand2 className="size-5" />
-              )}
-            </Button>
+              </Button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAiPanelOpen(true)}
+                className="group flex h-[7.25rem] w-[min(44rem,calc(100vw-2rem))] flex-col justify-between rounded-[1.6rem] border border-[#ffd8c3] bg-white/95 px-5 py-4 text-left shadow-[0_14px_32px_rgba(15,23,42,0.14)] backdrop-blur-md transition hover:border-[#ffc3a6] hover:bg-white"
+                title="Open AI assistant"
+              >
+                <p className="font-mono text-sm font-normal tracking-wide text-gray-500 md:text-base">
+                  Ask for follow-up changes
+                </p>
+
+                <div className="flex items-center justify-end">
+                  <div className="flex size-11 items-center justify-center rounded-full bg-[#f2f4f7] text-gray-500 transition group-hover:bg-[#ffefe5] group-hover:text-[#ff7a45]">
+                    <ArrowUp className="size-5" />
+                  </div>
+                </div>
+              </button>
+            )}
 
             <div
-              className={`h-full overflow-hidden transition-all duration-300 ${
+              className={`origin-bottom overflow-hidden transition-all duration-300 ${
                 isAiPanelOpen
-                  ? "w-[24rem] opacity-100 translate-x-0"
-                  : "w-0 opacity-0 translate-x-6"
+                  ? "h-[60vh] w-[min(56rem,calc(100vw-2rem))] max-h-[60vh] opacity-100 translate-y-0"
+                  : "h-0 w-[min(56rem,calc(100vw-2rem))] opacity-0 translate-y-3"
               }`}
             >
-              <div className="h-full w-[24rem]">
+              <div className="h-full w-[min(56rem,calc(100vw-2rem))]">
                 <UseCasePromptPanel onSchemaBuilt={() => setIsAiPanelOpen(false)} />
               </div>
             </div>

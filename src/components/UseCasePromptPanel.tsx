@@ -1,6 +1,6 @@
 'use client'
 
-import { Clipboard, Loader2, Send, Trash2, Wand2 } from 'lucide-react'
+import { ArrowUp, Clipboard, Loader2, Trash2, Wand2 } from 'lucide-react'
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -364,7 +364,7 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
   const canCopyThread = messages.length > 0 || plan.length > 0
 
   return (
-    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[16px] border border-[#ffc4a6] bg-white/95 shadow-sm">
+    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[26px] border border-[#ffd8c3] bg-white/95 shadow-none backdrop-blur-md">
       <div className="shrink-0 border-b border-[#ffe0d1] px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-[10px] bg-[#fff0e8] text-[#ff7a45]">
@@ -378,6 +378,21 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
               Discuss, build, prompt
             </p>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleGeneratePlan}
+            disabled={isLoading}
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-[#ffc4a6] bg-[#fff8f4] px-2.5 text-xs font-bold text-[#ff7a45] shadow-sm transition hover:bg-[#fff0e8] disabled:opacity-40"
+          >
+            {loadingMode === 'generateImplementationPlan' ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Clipboard className="size-3.5" />
+            )}
+            Prompt
+          </Button>
           {isDebugChatToolsEnabled ? (
             <Button
               type="button"
@@ -483,58 +498,43 @@ export function UseCasePromptPanel({ onSchemaBuilt }: UseCasePromptPanelProps = 
         ) : null}
       </div>
 
-      <div className="shrink-0 border-t border-[#ffe0d1] p-3">
+      <div className="shrink-0 p-3">
         {error ? (
           <p className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {error}
           </p>
         ) : null}
 
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          className="h-20 w-full resize-none rounded-[14px] border border-[#ffc4a6] bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#ff7a45]"
-          placeholder={
-            hasExistingModel
-              ? 'Ask a follow-up or describe a schema refinement'
-              : 'Describe the app you want to build'
-          }
-          spellCheck={false}
-          onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-              void handleSend()
+        <div className="relative">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            className="h-24 w-full resize-none rounded-[18px] border border-transparent bg-white px-4 pb-2 pt-10 pr-16 font-mono text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-transparent"
+            placeholder={
+              hasExistingModel
+                ? 'Ask a follow-up or describe a schema refinement'
+                : 'Describe the app you want to build'
             }
-          }}
-        />
+            spellCheck={false}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                void handleSend()
+              }
+            }}
+          />
 
-        <div className="mt-2 grid grid-cols-2 gap-2">
           <Button
             type="button"
             onClick={handleSend}
             disabled={isLoading}
-            className="h-10 rounded-[12px] bg-gray-900 px-3 text-xs font-semibold text-white hover:bg-gray-800"
+            className="absolute bottom-3 right-3 flex size-10 items-center justify-center rounded-full bg-[#f2f4f7] text-gray-500 transition hover:bg-[#ffefe5] hover:text-[#ff7a45] disabled:opacity-40"
           >
-            {loadingMode === 'discussIdea' || loadingMode === 'generateSchema' ? (
+            {isLoading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Send className="size-4" />
+              <ArrowUp className="size-4" />
             )}
-            {loadingMode === 'generateSchema' ? 'Building' : 'Ask'}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleGeneratePlan}
-            disabled={isLoading}
-            variant="outline"
-            className="h-10 rounded-[12px] border-[#ffc4a6] bg-white px-3 text-xs font-semibold text-[#ff7a45] hover:bg-[#fff5f0] hover:text-[#e66a39]"
-          >
-            {loadingMode === 'generateImplementationPlan' ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Clipboard className="size-4" />
-            )}
-            Prompt
           </Button>
         </div>
       </div>
