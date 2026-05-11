@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     console.warn('[ai:data-model] missing endpoint URL', { requestId })
     return Response.json(
       {
-        error: 'Missing AI_CHAT_COMPLETIONS_URL. Set it to a Chat Completions-compatible endpoint before generating a model.',
+        error: 'Missing AI_CHAT_COMPLETIONS_URL. Set it to a Chat Completions compatible endpoint before generating a model.',
       },
       { status: 500 },
     )

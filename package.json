@@ -1,6 +1,6 @@
 {
-  "name": "arkiv-visual-modeler",
-  "version": "0.1.0",
+  "name": "arkiv-build",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

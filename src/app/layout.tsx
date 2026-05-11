@@ -11,6 +11,7 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Arkiv Build",
   description: "Arkiv Build",
+  // todo : update metadata
 };
 
 export default function RootLayout({
