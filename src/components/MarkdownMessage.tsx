@@ -15,26 +15,26 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className="mt-2 mb-1 text-sm font-bold text-gray-950 first:mt-0">{children}</h1>
+            <h1 className="mb-2 mt-3 text-base font-bold leading-6 text-gray-950 first:mt-0">{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mt-2 mb-1 text-xs font-bold uppercase tracking-wide text-gray-700 first:mt-0">
+            <h2 className="mb-2 mt-3 text-sm font-bold leading-5 text-gray-900 first:mt-0">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mt-2 mb-1 text-xs font-bold text-gray-800 first:mt-0">{children}</h3>
+            <h3 className="mb-1.5 mt-3 text-sm font-semibold leading-5 text-gray-800 first:mt-0">{children}</h3>
           ),
           p: ({ children }) => (
-            <p className="my-1 text-xs leading-5 text-gray-700 first:mt-0 last:mb-0">{children}</p>
+            <p className="my-2 text-sm leading-6 text-gray-700 first:mt-0 last:mb-0">{children}</p>
           ),
           ul: ({ children }) => (
-            <ul className="my-1 ml-4 list-disc space-y-0.5 text-xs leading-5 text-gray-700 marker:text-[#ff7a45]">
+            <ul className="my-2 ml-5 list-disc space-y-1 text-sm leading-6 text-gray-700 marker:text-[#ff7a45]">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="my-1 ml-4 list-decimal space-y-0.5 text-xs leading-5 text-gray-700">
+            <ol className="my-2 ml-5 list-decimal space-y-1 text-sm leading-6 text-gray-700 marker:text-gray-400">
               {children}
             </ol>
           ),
@@ -59,12 +59,12 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
             )
           },
           pre: ({ children }) => (
-            <pre className="my-2 overflow-x-auto rounded-md border border-gray-200 bg-gray-50 p-2 text-[11px] leading-5 text-gray-800">
+            <pre className="my-3 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-5 text-gray-800">
               {children}
             </pre>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="my-1 border-l-2 border-[#ffc4a6] pl-2 text-xs italic text-gray-600">
+            <blockquote className="my-3 border-l-2 border-[#ffc4a6] pl-3 text-sm italic text-gray-600">
               {children}
             </blockquote>
           ),
@@ -80,8 +80,8 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
           ),
           hr: () => <hr className="my-2 border-gray-200" />,
           table: ({ children }) => (
-            <div className="my-2 overflow-x-auto">
-              <table className="min-w-full text-xs">{children}</table>
+            <div className="my-3 overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full text-sm">{children}</table>
             </div>
           ),
           th: ({ children }) => (

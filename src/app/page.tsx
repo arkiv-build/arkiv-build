@@ -219,7 +219,7 @@ function SchemaCanvas() {
         </div>
 
         <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
-          <div className="relative h-[50vh] w-[min(44rem,calc(100vw-2rem))]">
+          <div className="relative h-[min(68vh,44rem)] w-[min(52rem,calc(100vw-2rem))]">
             <button
               type="button"
               onClick={() => setIsAiPanelOpen(true)}
@@ -240,13 +240,13 @@ function SchemaCanvas() {
             </button>
 
             <div
-              className={`pointer-events-auto absolute inset-x-0 bottom-0 h-[50vh] origin-bottom overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu [will-change:transform,opacity] ${
+              className={`pointer-events-auto absolute inset-x-0 bottom-0 h-[min(68vh,44rem)] origin-bottom overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu [will-change:transform,opacity] ${
                 isAiPanelOpen
                   ? 'scale-y-100 opacity-100 translate-y-0'
                   : 'pointer-events-none scale-y-95 opacity-0 translate-y-2'
               }`}
             >
-              <div className="h-[50vh] w-full">
+              <div className="h-[min(68vh,44rem)] w-full">
                 <UseCasePromptPanel
                   onSchemaBuilt={() => {
                     setIsAiPanelOpen(false)

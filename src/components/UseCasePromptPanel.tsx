@@ -29,6 +29,12 @@ const MODEL_UNAVAILABLE_MESSAGE =
 
 type LoadingMode = 'discussIdea' | 'generateSchema' | 'generateImplementationPlan'
 
+const loadingLabels: Record<LoadingMode, string> = {
+  discussIdea: 'Understanding your app',
+  generateSchema: 'Building schema',
+  generateImplementationPlan: 'Drafting implementation prompt',
+}
+
 const isDebugChatToolsEnabled =
   process.env.NODE_ENV === 'development' &&
   process.env.NEXT_PUBLIC_ENABLE_CHAT_DEBUG_TOOLS === 'true'
@@ -95,6 +101,8 @@ export function UseCasePromptPanel({
   const [error, setError] = useState<string>()
   const [selections, setSelections] = useState<Record<string, Record<string, string>>>({})
   const submittedSelectionsRef = useRef<Set<string>>(new Set())
+  const runDiscussionTurnRef = useRef<(userText: string) => Promise<void>>(async () => {})
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const hasExistingModel = useMemo(
@@ -111,11 +119,30 @@ export function UseCasePromptPanel({
     [edges, hasExistingModel, nodes],
   )
 
-  const scrollMessagesToEnd = () => {
-    window.setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ block: 'end' })
-    }, 0)
-  }
+  useEffect(() => {
+    const latestMessage = messages.at(-1)
+    if (!latestMessage) return
+
+    const frame = window.requestAnimationFrame(() => {
+      if (latestMessage.role === 'assistant') {
+        messageRefs.current
+          .get(latestMessage.id)
+          ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+        return
+      }
+
+      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [messages])
+
+  useEffect(() => {
+    const textarea = inputRef.current
+    if (!textarea) return
+
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 144)}px`
+  }, [input])
 
   const runDiscussionTurn = async (userText: string) => {
     const trimmed = userText.trim()
@@ -125,7 +152,6 @@ export function UseCasePromptPanel({
     setMessages(nextMessages)
     setError(undefined)
     setLoadingMode('discussIdea')
-    scrollMessagesToEnd()
 
     try {
       const response = await fetch('/api/ai/assistant', {
@@ -153,7 +179,6 @@ export function UseCasePromptPanel({
         payload.questions,
       )
       setMessages((currentMessages) => [...currentMessages, assistantMessage])
-      scrollMessagesToEnd()
 
       if (payload.readyToBuild && !payload.questions?.length) {
         const conversationForBuild = [...nextMessages, assistantMessage]
@@ -166,6 +191,8 @@ export function UseCasePromptPanel({
       setLoadingMode(undefined)
     }
   }
+
+  runDiscussionTurnRef.current = runDiscussionTurn
 
   const handleSend = async () => {
     const trimmedInput = input.trim()
@@ -229,7 +256,6 @@ export function UseCasePromptPanel({
           `Built the ${payload.dataModel?.title || 'Arkiv'} schema on the canvas.`,
         ),
       ])
-      scrollMessagesToEnd()
       onSchemaBuilt?.()
     } catch (nextError) {
       console.error('[ai:assistant:client] schema generation failed', nextError)
@@ -372,20 +398,20 @@ export function UseCasePromptPanel({
     if (!answerText) return
 
     submittedSelectionsRef.current.add(latestAssistantMessage.id)
-    void runDiscussionTurn(answerText)
+    void runDiscussionTurnRef.current(answerText)
   }, [latestAssistantMessage, selections, isLoading])
 
   const canClearChat = messages.length > 0 || plan.length > 0 || input.length > 0
   const canCopyThread = messages.length > 0 || plan.length > 0
 
   return (
-    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[26px] border border-[#ffd8c3] bg-white/95 shadow-none backdrop-blur-md">
-      <div className="shrink-0 border-b border-[#ffe0d1] px-4 py-3">
-        <div className="flex items-center gap-2">
+    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-[#ffd8c3]/80 bg-white/95 backdrop-blur-md">
+      <div className="shrink-0 border-b border-[#ffe0d1] bg-white/95 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-[10px] bg-[#fff0e8] text-[#ff7a45]">
             <Wand2 className="size-4" />
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[10rem] flex-1">
             <h2 className="truncate text-sm font-bold text-gray-950">
               Arkiv Build Agent
             </h2>
@@ -447,14 +473,17 @@ export function UseCasePromptPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[#fbfbfc] px-4 py-4">
         {messages.length === 0 ? (
-          <div className="rounded-[14px] border border-dashed border-[#ffd4bf] bg-[#fff8f4] px-3 py-3 text-xs leading-5 text-gray-600">
-            Describe your app. Discuss the implementation, then get an Arkiv data model and a build-ready prompt.
+          <div className="rounded-[18px] border border-dashed border-[#ffd4bf] bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <p className="font-semibold text-gray-900">Start with the shape of the app.</p>
+            <p className="mt-1">
+              Describe what users create, read, or update. Arkiv will ask only for the missing pieces before building the data model.
+            </p>
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
           {messages.map((message) => {
             const messageId = message.id
             const messageSelections = messageId
@@ -467,42 +496,63 @@ export function UseCasePromptPanel({
             return (
               <div
                 key={messageId ?? `${message.role}-${message.content}`}
-                className={`max-w-[92%] rounded-[14px] px-3 py-2 text-xs leading-5 ${
+                ref={(element) => {
+                  if (!messageId) return
+                  if (element) {
+                    messageRefs.current.set(messageId, element)
+                    return
+                  }
+                  messageRefs.current.delete(messageId)
+                }}
+                className={`group flex max-w-[92%] flex-col gap-1.5 ${
                   message.role === 'user'
-                    ? 'ml-auto bg-[#ff7a45] text-white'
-                    : 'mr-auto border border-gray-200 bg-gray-50 text-gray-700'
+                    ? 'ml-auto items-end'
+                    : 'mr-auto w-full max-w-[46rem] items-start'
                 }`}
               >
+                <p
+                  className={`px-1 text-[11px] font-semibold uppercase ${
+                    message.role === 'user' ? 'text-[#d95018]' : 'text-gray-500'
+                  }`}
+                >
+                  {message.role === 'user' ? 'You' : 'Arkiv'}
+                </p>
                 {message.role === 'assistant' ? (
-                  <MarkdownMessage content={message.content} />
+                  <div className="w-full rounded-[18px] border border-gray-200 bg-white px-4 py-3 text-gray-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                    <MarkdownMessage content={message.content} />
+                  </div>
                 ) : (
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  <div className="max-w-[34rem] rounded-[18px] bg-[#ff7a45] px-4 py-3 text-sm leading-6 text-white shadow-[0_6px_18px_rgba(255,122,69,0.2)]">
+                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  </div>
                 )}
 
                 {message.role === 'assistant' && message.questions && messageId ? (
-                  <AssistantQuestionOptions
-                    questions={message.questions}
-                    selections={messageSelections}
-                    disabled={isAlreadySubmitted}
-                    onSelect={(questionId, value) =>
-                      handleOptionSelect(messageId, questionId, value)
-                    }
-                  />
+                  <div className="w-full">
+                    <AssistantQuestionOptions
+                      questions={message.questions}
+                      selections={messageSelections}
+                      disabled={isAlreadySubmitted}
+                      onSelect={(questionId, value) =>
+                        handleOptionSelect(messageId, questionId, value)
+                      }
+                    />
+                  </div>
                 ) : null}
               </div>
             )
           })}
-          {loadingMode === 'discussIdea' ? (
-            <div className="mr-auto flex items-center gap-2 rounded-[14px] border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+          {loadingMode ? (
+            <div className="mr-auto flex max-w-[46rem] items-center gap-2 rounded-[18px] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
               <Loader2 className="size-3.5 animate-spin" />
-              Thinking
+              {loadingLabels[loadingMode]}
             </div>
           ) : null}
           <div ref={messagesEndRef} />
         </div>
 
         {plan ? (
-          <div className="mt-3 overflow-hidden rounded-[14px] border border-[#ffd4bf] bg-[#fffaf7]">
+          <div className="mt-4 overflow-hidden rounded-[18px] border border-[#ffd4bf] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             <div className="flex items-center justify-between border-b border-[#ffe0d1] px-3 py-2">
               <p className="text-xs font-bold text-gray-800">Implementation prompt</p>
               <Button
@@ -516,14 +566,14 @@ export function UseCasePromptPanel({
                 Copy
               </Button>
             </div>
-            <div className="max-h-[260px] overflow-auto px-3 py-3">
+            <div className="max-h-[260px] overflow-auto px-4 py-3">
               <MarkdownMessage content={plan} />
             </div>
           </div>
         ) : null}
       </div>
 
-      <div className="shrink-0 p-3">
+      <div className="shrink-0 border-t border-gray-200/70 bg-white p-3">
         {error ? (
           <p className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {error}
@@ -535,11 +585,12 @@ export function UseCasePromptPanel({
             ref={inputRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            className="h-24 w-full resize-none rounded-[18px] border border-transparent bg-white px-4 pb-2 pt-10 pr-16 font-mono text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-transparent"
+            rows={1}
+            className="max-h-36 min-h-14 w-full resize-none overflow-y-auto rounded-[18px] border border-gray-200 bg-white py-4 pl-4 pr-16 text-sm leading-6 text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-[#ffc4a6] focus:ring-4 focus:ring-[#fff0e8]"
             placeholder={
               hasExistingModel
-                ? 'Ask a follow-up or describe a schema refinement'
-                : 'Describe the app you want to build'
+                ? 'Ask for a schema change, new entity, or relationship...'
+                : 'Describe what this app should store or change...'
             }
             spellCheck={false}
             onKeyDown={(event) => {
