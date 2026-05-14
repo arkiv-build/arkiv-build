@@ -56,6 +56,7 @@ function SchemaCanvas() {
   const onConnect = useSchemaStore((state) => state.onConnect);
   const setActiveNode = useSchemaStore((state) => state.setActiveNode);
   const loadGraphOfEntities = useSchemaStore((state) => state.loadGraphOfEntities);
+  const deploymentNotes = useSchemaStore((state) => state.deploymentNotes);
   const clearCanvas = useSchemaStore((state) => state.clearCanvas);
   const initializeArkiv = useArkivStore((state) => state.initialize);
   const startBalanceSync = useArkivStore((state) => state.startBalanceSync);
@@ -68,7 +69,7 @@ function SchemaCanvas() {
   const isDevMode = process.env.NODE_ENV === 'development'
 
   const handleCopyCanvasModel = async () => {
-    const model = serializeCanvasToGeneratedDataModel(nodes, edges)
+    const model = serializeCanvasToGeneratedDataModel(nodes, edges, deploymentNotes)
     const payload = {
       exportedAt: new Date().toISOString(),
       model,
@@ -89,7 +90,7 @@ function SchemaCanvas() {
       const { nodes: nextNodes, edges: nextEdges } =
         buildSchemaGraphFromGeneratedModel(model)
 
-      loadGraphOfEntities(nextNodes, nextEdges)
+      loadGraphOfEntities(nextNodes, nextEdges, model.deploymentNotes)
     } catch (error) {
       window.alert(
         `Unable to paste model. Make sure the clipboard contains valid Copy Model JSON.\n\n${getErrorMessage(error, 'Invalid model payload.')}`,
@@ -153,14 +154,16 @@ function SchemaCanvas() {
       <div className="pointer-events-none absolute inset-0 z-10">
         <ProjectCollisionPrompt />
 
-        {isAiPanelOpen ? (
-          <button
-            type="button"
-            aria-label="Close AI assistant"
-            className="pointer-events-auto absolute inset-0 z-10 cursor-default"
-            onClick={() => setIsAiPanelOpen(false)}
-          />
-        ) : null}
+        <button
+          type="button"
+          aria-label="Close AI assistant"
+          tabIndex={isAiPanelOpen ? 0 : -1}
+          aria-hidden={!isAiPanelOpen}
+          className={`absolute inset-0 z-30 cursor-default bg-white/30 backdrop-blur-sm transition-opacity duration-300 ${
+            isAiPanelOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          onClick={() => setIsAiPanelOpen(false)}
+        />
 
         <div className="absolute top-[110px] bottom-6 left-6 flex min-h-0 flex-col transition-all duration-300">
           <Button
@@ -221,7 +224,7 @@ function SchemaCanvas() {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+        <div className="pointer-events-none absolute bottom-6 left-1/2 z-40 -translate-x-1/2">
           <div className="relative h-[min(68vh,44rem)] w-[min(52rem,calc(100vw-2rem))]">
             <button
               type="button"

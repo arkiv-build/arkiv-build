@@ -91,6 +91,7 @@ export function UseCasePromptPanel({
   const connectedWalletAddress = useArkivStore((state) => state.account)
   const nodes = useSchemaStore((state) => state.nodes)
   const edges = useSchemaStore((state) => state.edges)
+  const storedDeploymentNotes = useSchemaStore((state) => state.deploymentNotes)
   const loadGraphOfEntities = useSchemaStore((state) => state.loadGraphOfEntities)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<AssistantMessage[]>([])
@@ -114,9 +115,9 @@ export function UseCasePromptPanel({
   const currentModel = useMemo(
     () =>
       hasExistingModel
-        ? serializeCanvasToGeneratedDataModel(nodes, edges)
+        ? serializeCanvasToGeneratedDataModel(nodes, edges, storedDeploymentNotes)
         : undefined,
-    [edges, hasExistingModel, nodes],
+    [edges, hasExistingModel, nodes, storedDeploymentNotes],
   )
 
   useEffect(() => {
@@ -246,7 +247,11 @@ export function UseCasePromptPanel({
       )
 
       startTransition(() => {
-        loadGraphOfEntities(nextNodes, nextEdges)
+        loadGraphOfEntities(
+          nextNodes,
+          nextEdges,
+          payload.dataModel?.deploymentNotes ?? [],
+        )
       })
 
       setMessages((currentMessages) => [

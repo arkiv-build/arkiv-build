@@ -42,6 +42,12 @@ const RELATION_COLORS = [
 
 const PROJECT_ATTRIBUTE_KEY = 'project'
 const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
+const ENTITY_TYPE_ATTRIBUTE_KEY = 'entityType'
+
+const toEntityTypeValue = (entityName: string) => {
+  const sanitized = sanitizeIdentifier(entityName) || entityName
+  return sanitized.charAt(0).toLowerCase() + sanitized.slice(1)
+}
 
 const pickRelationColor = (index: number) =>
   RELATION_COLORS[index % RELATION_COLORS.length]
@@ -266,6 +272,7 @@ export const hasMeaningfulCanvasModel = (
 export const serializeCanvasToGeneratedDataModel = (
   nodes: SchemaNode[],
   edges: SchemaEdge[],
+  deploymentNotes: string[] = [],
 ): GeneratedDataModel => {
   const nodeById = new Map(nodes.map((node) => [node.id, node]))
   const relations = edges
@@ -326,7 +333,7 @@ export const serializeCanvasToGeneratedDataModel = (
     title: 'Current canvas model',
     summary: 'The current Arkiv model already on the canvas.',
     deploymentOrder: entities.map((entity) => entity.name),
-    deploymentNotes: [],
+    deploymentNotes,
     entities,
     relations,
   }
@@ -603,14 +610,36 @@ export const buildSchemaGraphFromGeneratedModel = (
     })
     .forEach((entity) => {
       const nodeId = `${SCHEMA_NODE_ID_PREFIX}${crypto.randomUUID()}`
-      const fields = entity.indexedAttributes.map((attribute) =>
+      const hasEntityType = entity.indexedAttributes.some(
+        (attribute) => attribute.name.trim() === ENTITY_TYPE_ATTRIBUTE_KEY,
+      )
+      const indexedAttributesWithEntityType: GeneratedIndexedAttribute[] = hasEntityType
+        ? entity.indexedAttributes
+        : (() => {
+            const projectIndex = entity.indexedAttributes.findIndex(
+              (attribute) =>
+                attribute.name.trim() === LEGACY_PROJECT_ATTRIBUTE_KEY ||
+                attribute.name.trim().toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+            )
+            const injected: GeneratedIndexedAttribute = {
+              name: ENTITY_TYPE_ATTRIBUTE_KEY,
+              type: 'indexedString',
+              value: toEntityTypeValue(entity.schemaName),
+            }
+            const next = [...entity.indexedAttributes]
+            const insertAt = projectIndex >= 0 ? projectIndex + 1 : 0
+            next.splice(insertAt, 0, injected)
+            return next
+          })()
+
+      const fields = indexedAttributesWithEntityType.map((attribute) =>
         createField(
           sanitizeIdentifier(attribute.name) || 'field',
           attribute.type,
           String(attribute.value ?? ''),
         ),
       )
-      const projectAttributeValue = entity.indexedAttributes.find(
+      const projectAttributeValue = indexedAttributesWithEntityType.find(
         (attribute) =>
           attribute.name.trim() === LEGACY_PROJECT_ATTRIBUTE_KEY ||
           attribute.name.trim().toLowerCase() === PROJECT_ATTRIBUTE_KEY,
@@ -673,14 +702,12 @@ export const buildSchemaGraphFromGeneratedModel = (
     const relationFieldName =
       sanitizeIdentifier(relation.fieldName) ||
       `${sourceEntity.schemaName.charAt(0).toLowerCase()}${sourceEntity.schemaName.slice(1)}Id`
-    const edgeId = isSelfRelation
-      ? undefined
-      : createUniqueEdgeId(
-          sourceNode.id,
-          targetNode.id,
-          relationFieldName,
-          seenEdgeIds,
-        )
+    const edgeId = createUniqueEdgeId(
+      sourceNode.id,
+      targetNode.id,
+      relationFieldName,
+      seenEdgeIds,
+    )
 
     const existingField = targetNode.data.fields.find(
       (field) => field.name.toLowerCase() === relationFieldName.toLowerCase(),
@@ -690,20 +717,16 @@ export const buildSchemaGraphFromGeneratedModel = (
       existingField.type = 'indexedString'
       existingField.value = ''
       existingField.edgeId = edgeId
-      existingField.relationNodeId = isSelfRelation ? undefined : sourceNode.id
+      existingField.relationNodeId = sourceNode.id
     } else {
       targetNode.data.fields.push({
         ...createField(relationFieldName, 'indexedString', ''),
-        ...(isSelfRelation
-          ? {}
-          : {
-              edgeId,
-              relationNodeId: sourceNode.id,
-            }),
+        edgeId,
+        relationNodeId: sourceNode.id,
       })
     }
 
-    if (isSelfRelation || !edgeId) {
+    if (!edgeId) {
       return
     }
 

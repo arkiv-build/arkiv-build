@@ -56,6 +56,7 @@ export type SchemaEdge = Edge;
 type SchemaState = {
   nodes: SchemaNode[];
   edges: SchemaEdge[];
+  deploymentNotes: string[];
   activeNodeId?: string;
   onNodesChange: (changes: NodeChange<SchemaNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<SchemaEdge>[]) => void;
@@ -97,7 +98,11 @@ type SchemaState = {
   updateEntityData: (nodeId: string, entityData: string) => void;
   setDeployFailed: (nodeId: string, failed: boolean) => void;
   removeNode: (nodeId: string) => void;
-  loadGraphOfEntities: (nodes: SchemaNode[], edges: SchemaEdge[]) => void;
+  loadGraphOfEntities: (
+    nodes: SchemaNode[],
+    edges: SchemaEdge[],
+    deploymentNotes?: string[],
+  ) => void;
   mergeGraphOfEntities: (nodes: SchemaNode[], edges: SchemaEdge[]) => void;
 };
 
@@ -295,6 +300,7 @@ const applyProjectAttributeToConnectedNodes = (
 export const useSchemaStore = create<SchemaState>((set, get) => ({
   nodes: [{ ...createDraftEntityNode(SCHEMA_ENTITY_START_POSITION), selected: true }],
   edges: [],
+  deploymentNotes: [],
   activeNodeId: undefined,
   onNodesChange: (changes) =>
     set((state) => {
@@ -412,6 +418,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     set({
       nodes: [],
       edges: [],
+      deploymentNotes: [],
       activeNodeId: undefined,
     });
   },
@@ -683,10 +690,11 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
         },
       })),
     })),
-  loadGraphOfEntities: (nodes, edges) =>
+  loadGraphOfEntities: (nodes, edges, deploymentNotes) =>
     set({
       nodes,
       edges,
+      deploymentNotes: deploymentNotes ?? [],
       activeNodeId: nodes.find((n) => n.selected)?.id ?? nodes[0]?.id,
     }),
   mergeGraphOfEntities: (nodes, edges) =>

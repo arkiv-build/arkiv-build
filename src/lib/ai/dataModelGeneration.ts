@@ -24,7 +24,7 @@ import {
 } from '@/lib/ai/dataModel'
 import { getErrorMessage } from '@/lib/errors'
 
-const MAX_GENERATION_ATTEMPTS = 5
+const MAX_GENERATION_ATTEMPTS = 1
 
 const DATA_MODEL_EVALUATION_JSON_SCHEMA = {
   name: 'arkiv_data_model_evaluation',
@@ -353,7 +353,7 @@ export const generateDataModelFromAi = async ({
     return normalizeEvaluation(parsed)
   }
 
-  const includeGenerationTrace = process.env.NODE_ENV === 'development'
+  const includeGenerationTrace = true
   const traceAttempts: DataModelGenerationTraceAttempt[] = []
   let feedbackForRetry = ''
   let lastCandidate: GeneratedDataModel | undefined
@@ -381,7 +381,7 @@ export const generateDataModelFromAi = async ({
     try {
       evaluation = await evaluateCandidate(candidate)
     } catch (evaluationError) {
-      console.warn('[ai:data-model] evaluator failed, accepting latest candidate', {
+      console.warn('[ai:data-model] evaluator threw, returning candidate unverified', {
         requestId,
         attempt,
         error: getErrorMessage(evaluationError, 'Unknown evaluator error.'),
@@ -391,9 +391,26 @@ export const generateDataModelFromAi = async ({
         ...(includeGenerationTrace
           ? {
               generationTrace: {
-                accepted: true,
+                accepted: false,
                 finalAttempt: attempt,
-                attempts: traceAttempts,
+                attempts: traceAttempts.map((traceAttempt) =>
+                  traceAttempt.attempt === attempt
+                    ? {
+                        ...traceAttempt,
+                        evaluatorResult: {
+                          accepted: false,
+                          criticalIssues: [
+                            `Evaluator threw: ${getErrorMessage(
+                              evaluationError,
+                              'Unknown evaluator error.',
+                            )}`,
+                          ],
+                          suggestions: [],
+                          summary: 'Evaluator failed to run; candidate returned unverified.',
+                        },
+                      }
+                    : traceAttempt,
+                ),
               },
             }
           : {}),
