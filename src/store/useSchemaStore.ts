@@ -101,7 +101,8 @@ type SchemaState = {
 };
 
 const ENTITY_HORIZONTAL_GAP = 96;
-const PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
+const PROJECT_ATTRIBUTE_KEY = "project";
+const LEGACY_PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
 const WALLET_PREFIX_PATTERN = /^(0x[a-fA-F0-9]{40})(-.+)?$/;
 
 const getNextEntityPosition = (nodes: SchemaNode[]): XYPosition => {
@@ -145,7 +146,7 @@ const upsertProjectAttributeField = (
 ): EntityField[] => {
   const projectAttributeIndex = fields.findIndex(
     (field) =>
-      field.name === PROJECT_ATTRIBUTE_KEY || field.name.toLowerCase() === "project",
+      field.name === LEGACY_PROJECT_ATTRIBUTE_KEY || field.name.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
   );
 
   if (projectAttributeIndex >= 0) {
@@ -221,15 +222,14 @@ const markSelectedNode = (nodes: SchemaNode[], nodeId: string) =>
     selected: node.id === nodeId,
   }));
 
-const createProjectAttributeValue = (walletAddress: string | undefined, name: string) => {
-  const trimmedWalletAddress = walletAddress?.trim();
+const createProjectAttributeValue = (_walletAddress: string | undefined, name: string) => {
   const trimmedName = name.trim();
 
-  if (!trimmedWalletAddress || !trimmedName) {
+  if (!trimmedName) {
     return undefined;
   }
 
-  return `${trimmedWalletAddress}-${trimmedName}`;
+  return trimmedName;
 };
 
 const findConnectedNodeIds = (

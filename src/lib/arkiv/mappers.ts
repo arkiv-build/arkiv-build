@@ -13,7 +13,8 @@ import {
   type SystemAttribute,
 } from "@/lib/arkiv/types";
 
-const PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
+const PROJECT_ATTRIBUTE_KEY = "project";
+const LEGACY_PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
 const WALLET_PREFIX_PATTERN = /^(0x[a-fA-F0-9]{40})(-.+)?$/;
 
 const durationDaysMap: Record<ExpirationDuration, number> = {
@@ -111,7 +112,7 @@ const getProjectAttributeValue = (entity: Entity) =>
   entity.attributes
     .find(
       (attribute) =>
-        attribute.key === PROJECT_ATTRIBUTE_KEY || attribute.key.toLowerCase() === "project",
+        attribute.key === LEGACY_PROJECT_ATTRIBUTE_KEY || attribute.key.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
     )
     ?.value?.toString();
 

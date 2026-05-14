@@ -371,7 +371,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
 
     try {
       const projectAttributeValue =
-        node.data.projectAttributeValue ?? `${account}-${node.data.label.trim()}`;
+        node.data.projectAttributeValue ?? node.data.label.trim();
 
       schemaStore.setProjectAttributeForConnectedDrafts(node.id, projectAttributeValue);
 

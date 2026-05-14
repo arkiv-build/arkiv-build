@@ -124,7 +124,7 @@ export function UseCasePromptPanel({
     if (!latestMessage) return
 
     const frame = window.requestAnimationFrame(() => {
-      if (latestMessage.role === 'assistant') {
+      if (latestMessage.role === 'assistant' && latestMessage.id) {
         messageRefs.current
           .get(latestMessage.id)
           ?.scrollIntoView({ block: 'start', behavior: 'smooth' })

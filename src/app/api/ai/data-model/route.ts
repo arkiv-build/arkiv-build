@@ -3,6 +3,7 @@ import {
   getEndpointHost,
 } from '@/lib/ai/chatCompletions'
 import { generateDataModelFromAi } from '@/lib/ai/dataModelGeneration'
+import { getSkillContextResult } from '@/lib/ai/skillContext'
 import type { DataModelGenerationMode, GeneratedDataModel } from '@/lib/ai/dataModel'
 import { getErrorMessage } from '@/lib/errors'
 
@@ -74,6 +75,14 @@ export async function POST(request: Request) {
   }
 
   try {
+    const skillContextResult = await getSkillContextResult()
+
+    console.info('[ai:data-model] skill context loaded', {
+      requestId,
+      source: skillContextResult.source,
+      contextLength: skillContextResult.context.length,
+    })
+
     const dataModel = await generateDataModelFromAi({
       endpointUrl,
       apiKey,
@@ -81,6 +90,7 @@ export async function POST(request: Request) {
       mode,
       useCase,
       currentModel,
+      skillContext: skillContextResult.context,
       requestId,
     })
 

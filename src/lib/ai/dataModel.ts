@@ -40,7 +40,8 @@ const RELATION_COLORS = [
   '#84cc16',
 ] as const
 
-const PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
+const PROJECT_ATTRIBUTE_KEY = 'project'
+const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
 
 const pickRelationColor = (index: number) =>
   RELATION_COLORS[index % RELATION_COLORS.length]
@@ -300,7 +301,11 @@ export const serializeCanvasToGeneratedDataModel = (
 
     if (
       node.data.projectAttributeValue &&
-      !indexedAttributes.some((attribute) => attribute.name === PROJECT_ATTRIBUTE_KEY)
+      !indexedAttributes.some(
+        (attribute) =>
+          attribute.name === LEGACY_PROJECT_ATTRIBUTE_KEY ||
+          attribute.name.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+      )
     ) {
       indexedAttributes.unshift({
         name: PROJECT_ATTRIBUTE_KEY,
@@ -607,8 +612,8 @@ export const buildSchemaGraphFromGeneratedModel = (
       )
       const projectAttributeValue = entity.indexedAttributes.find(
         (attribute) =>
-          attribute.name.trim() === PROJECT_ATTRIBUTE_KEY ||
-          attribute.name.trim().toLowerCase() === 'project',
+          attribute.name.trim() === LEGACY_PROJECT_ATTRIBUTE_KEY ||
+          attribute.name.trim().toLowerCase() === PROJECT_ATTRIBUTE_KEY,
       )?.value
       const dataFields = entity.dataFields.map((field) =>
         createDataField(

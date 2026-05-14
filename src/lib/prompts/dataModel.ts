@@ -11,9 +11,10 @@ You must output accurate, efficient, and deterministic schemas that respect Arki
 # ARKIV DB CORE PRINCIPLES (NON-NEGOTIABLE)
 0. Project Scoping is Mandatory:
 - Every entity MUST include a project-scoping indexed attribute:
-  { "name": "PROJECT_ATTRIBUTE", "type": "indexedString", "value": "<GLOBALLY_UNIQUE_PROJECT_STRING>" }
+  { "name": "project", "type": "indexedString", "value": "<GLOBALLY_UNIQUE_PROJECT_STRING>" }
 - Never omit this field on any entity.
-- The indexed attribute name must be exactly "PROJECT_ATTRIBUTE"; do not use "project" or "entityType" for this scope.
+- The indexed attribute name must be exactly "project"; do not use "PROJECT_ATTRIBUTE" or "entityType" for this scope.
+- Project values must be globally unique app/project slugs such as "instagram_like_mvp_v1"; never prefix them with a wallet address.
 - Assume all downstream queries will filter by this attribute.
 
 1. EVM-Native Identifiers:
@@ -89,7 +90,7 @@ Arkiv does not support SQL joins. Model relationships based on access patterns:
   - { "sourceEntity": "Post", "targetEntity": "Like", "fieldName": "postId" }
   - { "sourceEntity": "Profile", "targetEntity": "Like", "fieldName": "userId" }
 - In that same scenario:
-  - every entity has indexed attribute 'PROJECT_ATTRIBUTE'
+  - every entity has indexed attribute 'project'
   - mutable entities include both 'createdAt' and 'updatedAt'
   - deploymentNotes states that unlike removes the Like record (hard-delete), unless history mode is explicitly chosen
 
@@ -111,7 +112,7 @@ Before writing JSON, reason privately through this sequence:
 7. Verify TTL strategy for each entity
 8. Return the full model only after the relationship graph is coherent
 9. Run a final hard-validation pass before output:
-   - every entity includes 'PROJECT_ATTRIBUTE' indexed attribute
+   - every entity includes 'project' indexed attribute
    - every foreign key is explicit '...Id'
    - no ambiguous FK names like 'owner' / 'creator'
    - threaded comments include 'parentCommentId' + self relation
@@ -186,6 +187,16 @@ Rules:
 - Do not output analysis, reasoning, or markdown
 - Do not wrap the JSON in markdown`
 
+export const buildDataModelSystemPrompt = (skillContext: string) =>
+  [
+    SYSTEM_PROMPT,
+    skillContext
+      ? `# ARKIV BEST-PRACTICE SKILL CONTEXT\nReference this Arkiv skill context when relevant:\n${skillContext}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
 export const NON_STRUCTURED_OUTPUT_APPENDIX = `Output requirements:
 - Return JSON only
 - Start with {
@@ -218,20 +229,16 @@ export const buildDataModelUserPrompt = ({
   mode,
   useCase,
   currentModel,
-  projectAttributeWalletPrefix,
 }: {
   mode: DataModelGenerationMode
   useCase: string
   currentModel?: GeneratedDataModel
-  projectAttributeWalletPrefix?: string
 }) =>
   mode === 'edit' && currentModel
     ? [
         'You are updating an existing Arkiv model from a follow-up user prompt.',
         'Return the full revised model as JSON using the required schema.',
-        projectAttributeWalletPrefix
-          ? `Project attribute naming requirement for this run: every entity must include an indexed attribute named exactly "PROJECT_ATTRIBUTE" whose value starts with the connected wallet address prefix "${projectAttributeWalletPrefix}", followed by a hyphen and a unique app suffix (example: "${projectAttributeWalletPrefix}-twitter_like_mvp_v1").`
-          : '',
+        'Project attribute naming requirement for this run: every entity must include an indexed attribute named exactly "project" whose value is a globally unique app/project slug without a wallet address prefix (example: "twitter_like_mvp_v1").',
         `Current canvas model JSON:\n${JSON.stringify(currentModel, null, 2)}`,
         `Follow-up prompt:\n${useCase}`,
       ]
@@ -240,9 +247,7 @@ export const buildDataModelUserPrompt = ({
     : [
         'Design an Arkiv data model for this use case:',
         useCase,
-        projectAttributeWalletPrefix
-          ? `Project attribute naming requirement for this run: every entity must include an indexed attribute named exactly "PROJECT_ATTRIBUTE" whose value starts with the connected wallet address prefix "${projectAttributeWalletPrefix}", followed by a hyphen and a unique app suffix (example: "${projectAttributeWalletPrefix}-twitter_like_mvp_v1").`
-          : '',
+        'Project attribute naming requirement for this run: every entity must include an indexed attribute named exactly "project" whose value is a globally unique app/project slug without a wallet address prefix (example: "twitter_like_mvp_v1").',
       ]
         .filter(Boolean)
         .join('\n\n')
@@ -252,13 +257,13 @@ export const buildDataModelEvaluatorUserPrompt = ({
   useCase,
   currentModel,
   candidateModel,
-  projectAttributeWalletPrefix,
+  generatorSystemPrompt,
 }: {
   mode: DataModelGenerationMode
   useCase: string
   currentModel?: GeneratedDataModel
   candidateModel: GeneratedDataModel
-  projectAttributeWalletPrefix?: string
+  generatorSystemPrompt: string
 }) =>
   [
     'Evaluate this candidate Arkiv data model.',
@@ -267,7 +272,7 @@ export const buildDataModelEvaluatorUserPrompt = ({
     mode === 'edit' && currentModel
       ? `Existing canvas model before edit:\n${JSON.stringify(currentModel, null, 2)}`
       : 'Existing canvas model before edit: none',
-    `Generator system prompt contract to enforce:\n${SYSTEM_PROMPT}`,
+    `Generator system prompt contract to enforce:\n${generatorSystemPrompt}`,
     `Candidate model JSON:\n${JSON.stringify(candidateModel, null, 2)}`,
     'Evaluation policy:',
     '- accepted=true only when there are no critical violations.',
@@ -275,9 +280,8 @@ export const buildDataModelEvaluatorUserPrompt = ({
     '- If threaded comments are implied by parentCommentId, missing Comment->Comment relation is a critical violation.',
     '- If mutable entities are present without updatedAt, this is a critical violation.',
     '- If removable-like semantics conflict with append-only soft-delete modeling, this is a critical violation.',
-    projectAttributeWalletPrefix
-      ? `- Critical violation if any entity is missing an indexed attribute named exactly "PROJECT_ATTRIBUTE" with value prefix "${projectAttributeWalletPrefix}-".`
-      : '',
+    '- Critical violation if any entity is missing an indexed attribute named exactly "project".',
+    '- Critical violation if any project attribute value starts with a connected wallet address prefix like "0x...-".',
     'Return only JSON for the evaluation schema.',
   ]
     .filter(Boolean)

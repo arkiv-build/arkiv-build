@@ -21,7 +21,8 @@ import type {
 } from "@/lib/arkiv/types";
 import { DESIGNER_APP_ID, DESIGNER_PAYLOAD_VERSION } from "@/lib/arkiv/types";
 
-const PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
+const PROJECT_ATTRIBUTE_KEY = 'project'
+const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
 
 export const fetchBlockTiming = async (): Promise<BlockTimingState> => {
   const publicClient = createArkivPublicClient();
@@ -84,11 +85,9 @@ const buildDesignerPayload = (label: string, fields: EntityField[]): DesignerPay
 });
 
 const buildProjectAttributeValue = ({
-  account,
   label,
   projectAttributeValue,
 }: {
-  account: Hex;
   label: string;
   projectAttributeValue?: string;
 }) => {
@@ -98,17 +97,15 @@ const buildProjectAttributeValue = ({
     return trimmedProjectAttributeValue;
   }
 
-  return `${account}-${label.trim()}`;
+  return label.trim();
 };
 
 const buildIndexedAttributes = ({
   fields,
-  account,
   label,
   projectAttributeValue,
 }: {
   fields: EntityField[];
-  account: Hex;
   label: string;
   projectAttributeValue?: string;
 }) => {
@@ -118,13 +115,15 @@ const buildIndexedAttributes = ({
   }));
 
   const projectAttribute = attributes.find(
-    (attribute) => attribute.key === PROJECT_ATTRIBUTE_KEY,
+    (attribute) =>
+      attribute.key === LEGACY_PROJECT_ATTRIBUTE_KEY ||
+      attribute.key.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
   );
 
   if (!projectAttribute) {
     attributes.unshift({
       key: PROJECT_ATTRIBUTE_KEY,
-      value: buildProjectAttributeValue({ account, label, projectAttributeValue }),
+      value: buildProjectAttributeValue({ label, projectAttributeValue }),
     });
   }
 
@@ -177,7 +176,6 @@ export const updatePersistedEntity = async ({
 
   const attributes = buildIndexedAttributes({
     fields: validFields,
-    account,
     label,
     projectAttributeValue,
   });
@@ -263,7 +261,6 @@ export const deployEntityFromDraft = async ({
   const expiresInSeconds = getExpirationSeconds(expirationDuration)
   const attributes = buildIndexedAttributes({
     fields: validFields,
-    account,
     label: trimmedLabel,
     projectAttributeValue,
   })

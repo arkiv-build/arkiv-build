@@ -3,7 +3,7 @@ import {
   DATA_MODEL_EVALUATOR_SYSTEM_PROMPT,
   JSON_REPAIR_SYSTEM_PROMPT,
   NON_STRUCTURED_OUTPUT_APPENDIX,
-  SYSTEM_PROMPT,
+  buildDataModelSystemPrompt,
   buildDataModelEvaluatorUserPrompt,
   buildDataModelUserPrompt,
 } from '@/lib/prompts'
@@ -111,7 +111,7 @@ export const generateDataModelFromAi = async ({
   mode,
   useCase,
   currentModel,
-  projectAttributeWalletPrefix,
+  skillContext,
   requestId,
 }: {
   endpointUrl: string
@@ -120,15 +120,15 @@ export const generateDataModelFromAi = async ({
   mode: DataModelGenerationMode
   useCase: string
   currentModel?: GeneratedDataModel
-  projectAttributeWalletPrefix?: string
+  skillContext: string
   requestId: string
 }): Promise<DataModelGenerationResult> => {
   const baseUserPrompt = buildDataModelUserPrompt({
     mode,
     useCase,
     currentModel,
-    projectAttributeWalletPrefix,
   })
+  const generatorSystemPrompt = buildDataModelSystemPrompt(skillContext)
   const supportsStructuredOutputs = !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(model)
   const openRouterEndpoint = isOpenRouterEndpoint(endpointUrl)
   const supportsCustomTemperature =
@@ -139,7 +139,7 @@ export const generateDataModelFromAi = async ({
       messages: [
         {
           role: 'system',
-          content: SYSTEM_PROMPT,
+          content: generatorSystemPrompt,
         },
         {
           role: 'user',
@@ -299,7 +299,7 @@ export const generateDataModelFromAi = async ({
       useCase,
       currentModel,
       candidateModel,
-      projectAttributeWalletPrefix,
+      generatorSystemPrompt,
     })
 
     const requestBody: Record<string, unknown> = {

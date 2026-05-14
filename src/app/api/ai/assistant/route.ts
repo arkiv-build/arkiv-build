@@ -290,7 +290,6 @@ const postStructuredDiscussionCompletion = async ({
   systemPrompt,
   messages,
   useCase,
-  projectAttributeWalletPrefix,
   requestId,
 }: {
   endpointUrl: string
@@ -299,13 +298,11 @@ const postStructuredDiscussionCompletion = async ({
   systemPrompt: string
   messages: AssistantMessage[]
   useCase: string
-  projectAttributeWalletPrefix?: string
   requestId: string
 }) => {
   const userPrompt = buildAssistantDiscussionUserPrompt({
     messages,
     useCase,
-    projectAttributeWalletPrefix,
   })
 
   const supportsStructuredOutputs = !MODELS_WITHOUT_STRUCTURED_OUTPUTS.has(model)
@@ -534,18 +531,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    let skillContext = ''
+    const skillContextResult = await getSkillContextResult()
+    const skillContext = skillContextResult.context
 
-    if (mode !== 'generateSchema') {
-      const skillContextResult = await getSkillContextResult()
-      skillContext = skillContextResult.context
-
-      console.info('[ai:assistant] skill context loaded', {
-        requestId,
-        source: skillContextResult.source,
-        contextLength: skillContext.length,
-      })
-    }
+    console.info('[ai:assistant] skill context loaded', {
+      requestId,
+      source: skillContextResult.source,
+      contextLength: skillContext.length,
+    })
 
     if (mode === 'generateSchema') {
       const { dataModel, generationTrace } = await generateDataModelFromAi({
@@ -555,7 +548,7 @@ export async function POST(request: Request) {
         mode: body.schemaMode === 'edit' ? 'edit' : 'create',
         useCase,
         currentModel: body.currentModel,
-        projectAttributeWalletPrefix: connectedWalletAddress,
+        skillContext,
         requestId,
       })
 
@@ -576,7 +569,6 @@ export async function POST(request: Request) {
           messages,
           useCase,
           currentModel: body.currentModel,
-          projectAttributeWalletPrefix: connectedWalletAddress,
         }),
         requestId,
         maxTokens: 3600,
@@ -595,7 +587,6 @@ export async function POST(request: Request) {
       systemPrompt: buildAssistantSystemPrompt(skillContext),
       messages,
       useCase,
-      projectAttributeWalletPrefix: connectedWalletAddress,
       requestId,
     })
 

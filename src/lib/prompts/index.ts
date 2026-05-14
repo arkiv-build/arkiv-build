@@ -10,6 +10,7 @@ import {
   JSON_REPAIR_SYSTEM_PROMPT,
   NON_STRUCTURED_OUTPUT_APPENDIX,
   SYSTEM_PROMPT,
+  buildDataModelSystemPrompt,
   buildDataModelEvaluatorUserPrompt,
   buildDataModelUserPrompt,
 } from '@/lib/prompts/dataModel'
@@ -27,6 +28,7 @@ export {
   NON_STRUCTURED_OUTPUT_APPENDIX,
   SYSTEM_PROMPT,
   buildAssistantDiscussionUserPrompt,
+  buildDataModelSystemPrompt,
   buildDataModelEvaluatorUserPrompt,
   buildDataModelUserPrompt,
   buildImplementationPlanUserPrompt,
@@ -35,7 +37,7 @@ export {
 export const SYSTEM_PROMPTS = {
   assistantDiscussion: buildAssistantSystemPrompt,
   assistantDiscussionJsonRepair: DISCUSSION_JSON_REPAIR_SYSTEM_PROMPT,
-  dataModelGenerator: SYSTEM_PROMPT,
+  dataModelGenerator: buildDataModelSystemPrompt,
   dataModelJsonRepair: JSON_REPAIR_SYSTEM_PROMPT,
   dataModelEvaluator: DATA_MODEL_EVALUATOR_SYSTEM_PROMPT,
   implementationPlan: buildImplementationPlanSystemPrompt,

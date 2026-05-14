@@ -57,8 +57,8 @@ Arkiv ground truth — never get this wrong:
   - \`$owner\` — wallet that currently controls the entity. **Mutable** — can be transferred via \`changeOwnership\`. Only the current owner can \`updateEntity\` / \`deleteEntity\` / \`extendEntity\`.
   - \`$creator\` — wallet that originally created the entity. **Immutable** — set at creation, can never change. Creator has no special write privilege; it is purely a tamper-proof provenance anchor.
 - **Owner-only writes.** "Two parties write the same record" is impossible. If two parties contribute, they write **separate records**, each owned by its own wallet. When asking "who writes X?", the answer determines record ownership and signing keys, not authorship — and a single chip option must correspond to one owner per record class.
-- **\`PROJECT_ATTRIBUTE\` is mandatory.** Arkiv is a shared database; everyone's records live in the same chain. Every entity in the design MUST include a project-scoping attribute named exactly \`PROJECT_ATTRIBUTE\` (e.g., \`{ key: "PROJECT_ATTRIBUTE", value: "myapp-acme-7x9k" }\`), and every query MUST filter on it. Without this, queries leak across apps. State this as a baseline in any design discussion — never treat it as optional.
-- **\`PROJECT_ATTRIBUTE\` alone is NOT a trust anchor.** Any wallet can create entities with your project string and inject fake data. The trust pattern is: a known backend/agent wallet creates trusted records, and reads filter by \`.createdBy(TRUSTED_WALLET)\` *in addition to* \`PROJECT_ATTRIBUTE\`. Use \`$creator\` (immutable) for trust, not \`$owner\` (mutable). When the user mentions trust, integrity, "who can publish", or anti-spam concerns, surface this pattern explicitly.
+- **\`project\` is mandatory.** Arkiv is a shared database; everyone's records live in the same chain. Every entity in the design MUST include a project-scoping attribute named exactly \`project\` (e.g., \`{ key: "project", value: "myapp-acme-7x9k" }\`), and every query MUST filter on it. Project values should be globally unique app/project slugs and must not be prefixed with a wallet address. Without this, queries leak across apps. State this as a baseline in any design discussion — never treat it as optional.
+- **\`project\` alone is NOT a trust anchor.** Any wallet can create entities with your project string and inject fake data. The trust pattern is: a known backend/agent wallet creates trusted records, and reads filter by \`.createdBy(TRUSTED_WALLET)\` *in addition to* \`project\`. Use \`$creator\` (immutable) for trust, not \`$owner\` (mutable). When the user mentions trust, integrity, "who can publish", or anti-spam concerns, surface this pattern explicitly.
 - **Attribute typing drives query operators.**
   - String attributes support \`eq()\` and glob (\`~\`).
   - Numeric attributes support \`eq()\`, \`gt()\`, \`lt()\`, \`gte()\`, \`lte()\`.
@@ -143,11 +143,9 @@ Rules:
 export const buildAssistantDiscussionUserPrompt = ({
   messages,
   useCase,
-  projectAttributeWalletPrefix,
 }: {
   messages: AssistantMessage[]
   useCase: string
-  projectAttributeWalletPrefix?: string
 }) => {
   const hasPriorAssistantReply = messages.some(
     (message) => message.role === 'assistant',
@@ -156,9 +154,7 @@ export const buildAssistantDiscussionUserPrompt = ({
 
   return [
     'Continue this Arkiv Build Agent conversation.',
-    projectAttributeWalletPrefix
-      ? `Connected wallet context for project uniqueness: when proposing PROJECT_ATTRIBUTE examples, use values prefixed with "${projectAttributeWalletPrefix}-" followed by a unique app suffix.`
-      : '',
+    'Project attribute naming requirement: when proposing Arkiv project scoping examples, use an indexed attribute named exactly "project" with a globally unique app/project slug value, and do not prefix it with the connected wallet address.',
     hasPriorAssistantReply
       ? 'Turn type: follow-up. Assume Arkiv fit is already established. Do not re-explain generic Arkiv advantages unless the user explicitly asks or the architecture direction changes.'
       : 'Turn type: first response for a new idea. Include a short explicit "How Arkiv is a better db for the use case" framing.',
