@@ -264,6 +264,7 @@ const postTextCompletion = async ({
     body: requestBody,
   })
   const payload = (await upstreamResponse.json()) as ChatCompletionResponse
+  const finishReason = payload.choices?.[0]?.finish_reason
 
   console.info('[ai:assistant] upstream response received', {
     requestId,
@@ -271,6 +272,7 @@ const postTextCompletion = async ({
     ok: upstreamResponse.ok,
     upstreamError: payload.error?.message,
     hasChoices: Boolean(payload.choices?.length),
+    finishReason,
   })
 
   if (!upstreamResponse.ok) {
@@ -280,7 +282,21 @@ const postTextCompletion = async ({
     )
   }
 
-  return extractResponseText(payload).trim()
+  const content = extractResponseText(payload).trim()
+
+  console.info('[ai:assistant] upstream text extracted', {
+    requestId,
+    contentLength: content.length,
+    finishReason,
+  })
+
+  if (finishReason === 'length') {
+    throw new Error(
+      'The implementation prompt was too large and got truncated. Try generating again with a narrower scope or fewer prior chat messages.',
+    )
+  }
+
+  return content
 }
 
 const postStructuredDiscussionCompletion = async ({
@@ -608,7 +624,7 @@ export async function POST(request: Request) {
           seedContext: body.seedContext,
         }),
         requestId,
-        maxTokens: 3600,
+        maxTokens: 8000,
       })
 
       return Response.json({

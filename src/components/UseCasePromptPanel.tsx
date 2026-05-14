@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowUp, Clipboard, Loader2, Rocket, Sparkles, Trash2, Wand2, X } from 'lucide-react'
+import { ArrowUp, Check, Clipboard, Loader2, Rocket, Sparkles, Trash2, Wand2, X } from 'lucide-react'
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
   serializeCanvasToGeneratedDataModel,
   type DataModelGenerationMode,
 } from '@/lib/ai/dataModel'
+import { getErrorMessage } from '@/lib/errors'
 import type {
   AssistantDiscussionResponse,
   AssistantImplementationPlanResponse,
@@ -108,6 +109,7 @@ export function UseCasePromptPanel({
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<AssistantMessage[]>([])
   const [plan, setPlan] = useState('')
+  const [hasCopiedPlan, setHasCopiedPlan] = useState(false)
   const [generationTrace, setGenerationTrace] =
     useState<AssistantSchemaResponse['generationTrace']>()
   const [loadingMode, setLoadingMode] = useState<LoadingMode>()
@@ -118,6 +120,7 @@ export function UseCasePromptPanel({
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const copiedPlanTimeoutRef = useRef<number | undefined>(undefined)
   const hasExistingModel = useMemo(
     () => hasMeaningfulCanvasModel(nodes, edges),
     [nodes, edges],
@@ -167,6 +170,14 @@ export function UseCasePromptPanel({
     textarea.style.height = 'auto'
     textarea.style.height = `${Math.min(textarea.scrollHeight, 144)}px`
   }, [input])
+
+  useEffect(() => {
+    return () => {
+      if (copiedPlanTimeoutRef.current) {
+        window.clearTimeout(copiedPlanTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const runDiscussionTurn = async (userText: string) => {
     const trimmed = userText.trim()
@@ -327,9 +338,10 @@ export function UseCasePromptPanel({
       }
 
       setPlan(payload.plan)
+      setHasCopiedPlan(false)
     } catch (nextError) {
       console.error('[ai:assistant:client] plan generation failed', nextError)
-      setError(MODEL_UNAVAILABLE_MESSAGE)
+      setError(getErrorMessage(nextError, MODEL_UNAVAILABLE_MESSAGE))
     } finally {
       setLoadingMode(undefined)
     }
@@ -409,6 +421,16 @@ export function UseCasePromptPanel({
     }
 
     await navigator.clipboard.writeText(plan)
+    setHasCopiedPlan(true)
+
+    if (copiedPlanTimeoutRef.current) {
+      window.clearTimeout(copiedPlanTimeoutRef.current)
+    }
+
+    copiedPlanTimeoutRef.current = window.setTimeout(() => {
+      setHasCopiedPlan(false)
+      copiedPlanTimeoutRef.current = undefined
+    }, 1800)
   }
 
   const handleCopyThread = async () => {
@@ -501,6 +523,7 @@ export function UseCasePromptPanel({
 
   const canClearChat = messages.length > 0 || plan.length > 0 || input.length > 0
   const canCopyThread = messages.length > 0 || plan.length > 0
+  const hasPlan = plan.trim().length > 0
   const hasDraftEntities = nodes.some((node) => node.data.mode === 'draft')
   const hasSeedValues = Boolean(seedGenerationContext)
 
@@ -570,6 +593,22 @@ export function UseCasePromptPanel({
             )}
             Prompt
           </Button>
+          {hasPlan ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopyPlan}
+              className="flex h-8 items-center gap-1.5 rounded-[10px] border border-[#ffc4a6] bg-white px-2.5 text-xs font-bold text-[#ff7a45] shadow-sm transition hover:bg-[#fff0e8] disabled:opacity-40"
+            >
+              {hasCopiedPlan ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Clipboard className="size-3.5" />
+              )}
+              {hasCopiedPlan ? 'Copied' : 'Copy Prompt'}
+            </Button>
+          ) : null}
           {isDebugChatToolsEnabled ? (
             <Button
               type="button"
@@ -696,10 +735,14 @@ export function UseCasePromptPanel({
                 variant="ghost"
                 size="sm"
                 onClick={handleCopyPlan}
-                className="h-7 rounded-[10px] px-2 text-xs text-[#ff7a45] hover:bg-[#fff0e8] hover:text-[#e66a39]"
+                className="flex h-7 items-center gap-1.5 rounded-[10px] px-2 text-xs text-[#ff7a45] hover:bg-[#fff0e8] hover:text-[#e66a39]"
               >
-                <Clipboard className="size-3.5" />
-                Copy
+                {hasCopiedPlan ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Clipboard className="size-3.5" />
+                )}
+                {hasCopiedPlan ? 'Copied' : 'Copy'}
               </Button>
             </div>
             <div className="max-h-[260px] overflow-auto px-4 py-3">

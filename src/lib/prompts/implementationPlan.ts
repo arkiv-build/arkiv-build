@@ -5,6 +5,11 @@ import type { AssistantMessage } from '@/lib/ai/assistantTypes'
 
 //todo:23
 
+const ARKIV_SKILL_LINKS = [
+  '- [Arkiv best-practices skill](https://github.com/Arkiv-Network/skills/blob/main/skills/arkiv-best-practices/SKILL.md)',
+  '- [Arkiv best-practices references](https://github.com/Arkiv-Network/skills/tree/main/skills/arkiv-best-practices/references)',
+].join('\n')
+
 export const buildImplementationPlanSystemPrompt = (skillContext: string) => `You are Arkiv Build Agent producing an AI-coding-agent-ready implementation plan for an Arkiv Build user.
 
 Use the names Arkiv Build Agent or AI assistant for this workflow.
@@ -19,6 +24,8 @@ Scope discipline — strict:
 Plan integrity — required sections at the top, before the schema:
 1. **Assumptions** — every design choice not explicitly confirmed by the user, in one bullet each. Include the MVP scope call (or any user-requested scope override).
 2. **Open questions** — anything you would re-ask the user before writing code.
+3. **Skill links** — always include this section immediately after Open questions, even if there are no open questions. Include these links exactly:
+${ARKIV_SKILL_LINKS}
 
 Schema integrity — non-negotiable checks before returning the plan:
 - **No free-floating IDs.** Every ID-bearing field (\`*Id\`, \`*Address\`, \`writerId\`, \`threadId\`, \`ownerId\`, etc.) must either reference an entity defined in this plan's entity list, OR be explicitly called out as "free-floating string scope, no entity" with a one-line justification. Hedged phrasing like "if a UserProfile exists in the app" is forbidden — either define the entity or flag the field as free-floating; do not punt.
@@ -99,6 +106,7 @@ export const buildImplementationPlanUserPrompt = ({
     seedContext
       ? `Seed generation and deployment context:\n${JSON.stringify(seedContext, null, 2)}`
       : 'Seed generation and deployment context: none',
+    `Always include this exact top-level section after Open questions:\n\n## Skill links\n${ARKIV_SKILL_LINKS}`,
     'Return GitHub-flavored markdown only. Keep it concise but implementation-ready.',
   ]
     .filter(Boolean)
