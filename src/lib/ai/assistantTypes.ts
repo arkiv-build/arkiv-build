@@ -18,6 +18,7 @@ export type AssistantMessage = {
 export type AssistantRequestMode =
   | 'discussIdea'
   | 'generateSchema'
+  | 'generateSeedValues'
   | 'generateImplementationPlan'
 
 export type AssistantDiscussionResponse = {
@@ -49,6 +50,12 @@ export type AssistantSchemaResponse = {
   error?: string
 }
 
+export type AssistantSeedValuesResponse = {
+  dataModel?: GeneratedDataModel
+  model?: string
+  error?: string
+}
+
 export type AssistantImplementationPlanResponse = {
   plan?: string
   model?: string
@@ -60,6 +67,7 @@ export type AssistantApiRequest = {
   messages?: AssistantMessage[]
   useCase?: string
   currentModel?: GeneratedDataModel
+  seedContext?: unknown
   schemaMode?: DataModelGenerationMode
   connectedWalletAddress?: string
 }

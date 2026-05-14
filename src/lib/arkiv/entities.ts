@@ -325,3 +325,92 @@ export const deployEntityFromDraft = async ({
     txHash,
   };
 };
+
+const buildCreateInputFromDraft = ({
+  label,
+  fields,
+  expirationDuration,
+  dataFields,
+  projectAttributeValue,
+}: {
+  label: string;
+  fields: EntityField[];
+  expirationDuration: ExpirationDuration;
+  dataFields?: EntityDataField[];
+  projectAttributeValue?: string;
+}) => {
+  const trimmedLabel = label.trim();
+
+  if (!trimmedLabel) {
+    throw new Error("Project name is required before deploying.");
+  }
+
+  const validFields = fields.filter(
+    (field) =>
+      field.name.trim().length > 0 &&
+      (field.value.trim().length > 0 || Boolean(field.edgeId)),
+  );
+
+  if (validFields.length === 0) {
+    throw new Error(`Add at least one indexed field with a value before deploying ${trimmedLabel}.`);
+  }
+
+  const validDataFields = (dataFields ?? []).filter((df) => df.key.trim().length > 0);
+  const dataObj = Object.fromEntries(
+    validDataFields.map((df) => [df.key.trim(), df.value]),
+  );
+
+  return {
+    payload: jsonToPayload(dataObj),
+    contentType: 'application/json',
+    attributes: buildIndexedAttributes({
+      fields: validFields,
+      label: trimmedLabel,
+      projectAttributeValue,
+    }),
+    expiresIn: ExpirationTime.fromSeconds(getExpirationSeconds(expirationDuration)),
+  };
+};
+
+export const deployDraftEntitiesBatch = async ({
+  account,
+  entities,
+}: {
+  account: Hex;
+  entities: Array<{
+    label: string;
+    fields: EntityField[];
+    expirationDuration: ExpirationDuration;
+    dataFields?: EntityDataField[];
+    projectAttributeValue?: string;
+  }>;
+}) => {
+  if (entities.length === 0) {
+    throw new Error("Add at least one draft entity before deploying.");
+  }
+
+  const walletClient = createArkivWalletClient(account);
+  const publicClient = createArkivPublicClient();
+  const creates = entities.map(buildCreateInputFromDraft);
+
+  const { txHash, createdEntities } = await walletClient.mutateEntities({
+    creates,
+  });
+
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+  if (receipt.status === 'reverted') {
+    throw new Error("Batch deployment transaction failed on-chain.");
+  }
+
+  const blockTiming = await fetchBlockTiming();
+  const snapshots = await Promise.all(
+    createdEntities.map((entityKey) => fetchEntityDetails(entityKey, blockTiming)),
+  );
+
+  return {
+    snapshots,
+    txHash,
+    createdEntities,
+  };
+};

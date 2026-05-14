@@ -23,6 +23,7 @@ import type {
   PersistedEntitySnapshot,
   SystemAttribute,
 } from "@/lib/arkiv/types";
+import type { GeneratedDataModel } from "@/lib/ai/dataModel";
 import { mapSnapshotToNodeData } from "@/lib/arkiv/entityGraph";
 import {
   SCHEMA_DATA_FIELD_ID_PREFIX,
@@ -53,10 +54,27 @@ export type EntityNodeData = {
 export type SchemaNode = Node<EntityNodeData, "entity">;
 export type SchemaEdge = Edge;
 
+export type SeedGenerationContext = {
+  generatedAt: string;
+  entityCount: number;
+  source: "ai";
+};
+
+export type BatchDeploymentContext = {
+  deployedAt: string;
+  txHash: string;
+  entityCount: number;
+  createdEntityKeys: string[];
+  usedGeneratedSeedValues: boolean;
+  note?: string;
+};
+
 type SchemaState = {
   nodes: SchemaNode[];
   edges: SchemaEdge[];
   deploymentNotes: string[];
+  seedGenerationContext?: SeedGenerationContext;
+  batchDeploymentContext?: BatchDeploymentContext;
   activeNodeId?: string;
   onNodesChange: (changes: NodeChange<SchemaNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<SchemaEdge>[]) => void;
@@ -97,6 +115,11 @@ type SchemaState = {
   updateDataFieldValue: (nodeId: string, fieldId: string, value: string) => void;
   updateEntityData: (nodeId: string, entityData: string) => void;
   setDeployFailed: (nodeId: string, failed: boolean) => void;
+  applyGeneratedSeedValues: (model: GeneratedDataModel) => void;
+  setBatchDeploymentContext: (context: BatchDeploymentContext) => void;
+  replaceDraftNodesWithPersistedBatch: (
+    snapshotsByNodeId: Record<string, PersistedEntitySnapshot & { expirationDuration: ExpirationDuration }>,
+  ) => void;
   removeNode: (nodeId: string) => void;
   loadGraphOfEntities: (
     nodes: SchemaNode[],
@@ -307,6 +330,8 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
   nodes: [{ ...createDraftEntityNode(SCHEMA_ENTITY_START_POSITION), selected: true }],
   edges: [],
   deploymentNotes: [],
+  seedGenerationContext: undefined,
+  batchDeploymentContext: undefined,
   activeNodeId: undefined,
   onNodesChange: (changes) =>
     set((state) => {
@@ -417,6 +442,8 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     set({
       nodes: [nextNode],
       edges: [],
+      seedGenerationContext: undefined,
+      batchDeploymentContext: undefined,
       activeNodeId: nextNode.id,
     });
   },
@@ -425,6 +452,8 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       nodes: [],
       edges: [],
       deploymentNotes: [],
+      seedGenerationContext: undefined,
+      batchDeploymentContext: undefined,
       activeNodeId: undefined,
     });
   },
@@ -714,11 +743,129 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
         },
       })),
     })),
+  applyGeneratedSeedValues: (model) =>
+    set((state) => {
+      const entityByName = new Map(
+        model.entities.map((entity) => [entity.name.trim().toLowerCase(), entity]),
+      );
+
+      const nodes = state.nodes.map((node) => {
+        if (node.data.mode !== "draft") {
+          return node;
+        }
+
+        const generatedEntity = entityByName.get(node.data.label.trim().toLowerCase());
+        if (!generatedEntity) {
+          return node;
+        }
+
+        const attributesByName = new Map(
+          generatedEntity.indexedAttributes.map((attribute) => [
+            attribute.name.trim().toLowerCase(),
+            attribute,
+          ]),
+        );
+        const dataFieldsByKey = new Map(
+          generatedEntity.dataFields.map((field) => [
+            field.key.trim().toLowerCase(),
+            field,
+          ]),
+        );
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            fields: node.data.fields.map((field) => {
+              const attribute = attributesByName.get(field.name.trim().toLowerCase());
+
+              if (!attribute) {
+                return field;
+              }
+
+              return {
+                ...field,
+                type: attribute.type,
+                value: field.edgeId ? "" : String(attribute.value ?? ""),
+              };
+            }),
+            dataFields: (node.data.dataFields ?? []).map((field) => {
+              const generatedField = dataFieldsByKey.get(field.key.trim().toLowerCase());
+
+              if (!generatedField) {
+                return field;
+              }
+
+              return {
+                ...field,
+                value: generatedField.value,
+              };
+            }),
+          },
+        };
+      });
+
+      return {
+        nodes,
+        seedGenerationContext: {
+          generatedAt: new Date().toISOString(),
+          entityCount: model.entities.length,
+          source: "ai",
+        },
+        batchDeploymentContext: undefined,
+      };
+    }),
+  setBatchDeploymentContext: (context) =>
+    set({
+      batchDeploymentContext: context,
+    }),
+  replaceDraftNodesWithPersistedBatch: (snapshotsByNodeId) =>
+    set((state) => {
+      const nodes = state.nodes.map((node) => {
+        const snapshot = snapshotsByNodeId[node.id];
+
+        if (!snapshot) {
+          return node;
+        }
+
+        const previousFields = new Map(
+          node.data.fields.map((field) => [field.name.trim().toLowerCase(), field]),
+        );
+        const nextData = mapSnapshotToNodeData(snapshot);
+
+        return {
+          ...node,
+          data: {
+            ...nextData,
+            fields: nextData.fields.map((field) => {
+              const previousField = previousFields.get(field.name.trim().toLowerCase());
+
+              if (!previousField) {
+                return field;
+              }
+
+              return {
+                ...field,
+                edgeId: previousField.edgeId,
+                relationNodeId: previousField.relationNodeId,
+              };
+            }),
+          },
+        };
+      });
+
+      return {
+        nodes,
+        activeNodeId: Object.keys(snapshotsByNodeId)[0] ?? state.activeNodeId,
+      };
+    }),
   loadGraphOfEntities: (nodes, edges, deploymentNotes) =>
     set({
       nodes,
       edges,
       deploymentNotes: deploymentNotes ?? [],
+      seedGenerationContext: undefined,
+      batchDeploymentContext: undefined,
       activeNodeId: nodes.find((n) => n.selected)?.id ?? nodes[0]?.id,
     }),
   mergeGraphOfEntities: (nodes, edges) =>

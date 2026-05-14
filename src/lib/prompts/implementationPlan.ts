@@ -77,10 +77,12 @@ export const buildImplementationPlanUserPrompt = ({
   messages,
   useCase,
   currentModel,
+  seedContext,
 }: {
   messages: AssistantMessage[]
   useCase: string
   currentModel?: GeneratedDataModel
+  seedContext?: unknown
 }) =>
   [
     'Create an implementation plan for this Arkiv app idea that an AI coding agent can execute directly.',
@@ -94,6 +96,9 @@ export const buildImplementationPlanUserPrompt = ({
     currentModel
       ? `Current visual schema model:\n${JSON.stringify(currentModel, null, 2)}`
       : 'Current visual schema model: none',
+    seedContext
+      ? `Seed generation and deployment context:\n${JSON.stringify(seedContext, null, 2)}`
+      : 'Seed generation and deployment context: none',
     'Return GitHub-flavored markdown only. Keep it concise but implementation-ready.',
   ]
     .filter(Boolean)

@@ -10,6 +10,7 @@ import {
 } from "@/lib/arkiv/entityGraph";
 import {
   deployEntityFromDraft,
+  deployDraftEntitiesBatch,
   fetchEntitiesByProjectAttribute,
   fetchBlockTiming,
   fetchEntityDetails,
@@ -68,6 +69,7 @@ type ArkivState = {
   dismissProjectCollisionPrompt: () => void;
   deployActiveDraft: () => Promise<void>;
   deployDraft: (nodeId: string) => Promise<void>;
+  deploySeededDraftsBatch: () => Promise<boolean>;
   updateActiveEntity: () => Promise<void>;
   disconnectWallet: () => void;
 };
@@ -599,6 +601,113 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
           ? getErrorMessage(error, 'Arkiv deployment failed in MetaMask.')
           : 'Could not verify whether this project name is already in use.',
       });
+    } finally {
+      set({ checkingProjectCollision: false, deploying: false, deployingNodeId: undefined });
+    }
+  },
+  deploySeededDraftsBatch: async () => {
+    const { account, ignoredProjectAttributeValues } = get();
+    const schemaStore = useSchemaStore.getState();
+    const draftNodes = schemaStore.nodes.filter((node) => node.data.mode === 'draft');
+
+    if (!account) {
+      set({
+        error: 'Connect MetaMask to Arkiv Braga before deploying.',
+      });
+      return false;
+    }
+
+    if (draftNodes.length === 0) {
+      set({
+        error: 'Generate or add draft entities before deploying seed values.',
+      });
+      return false;
+    }
+
+    set({
+      checkingProjectCollision: true,
+      projectCollisionPrompt: undefined,
+      error: undefined,
+    });
+
+    let collisionCheckComplete = false;
+
+    try {
+      const projectAttributeValue = getProjectAttributeValueForDraft(draftNodes[0]);
+
+      if (!projectAttributeValue) {
+        throw new Error('Project name is required before deploying.');
+      }
+
+      const normalizedProjectAttribute = normalizeProjectAttributeValue(projectAttributeValue);
+      const isIgnoredProject = ignoredProjectAttributeValues.includes(normalizedProjectAttribute);
+
+      if (!isIgnoredProject) {
+        const matchingEntities = await fetchEntitiesByProjectAttribute(projectAttributeValue);
+        collisionCheckComplete = true;
+        const collisionPrompt = buildProjectCollisionPrompt({
+          account,
+          projectAttributeValue,
+          entities: matchingEntities,
+        });
+
+        if (collisionPrompt) {
+          schemaStore.setProjectAttributeForConnectedDrafts(draftNodes[0].id, projectAttributeValue);
+          set({
+            projectCollisionPrompt: collisionPrompt,
+            checkingProjectCollision: false,
+          });
+          return false;
+        }
+      }
+
+      set({
+        checkingProjectCollision: false,
+        deploying: true,
+        deployingNodeId: undefined,
+      });
+
+      schemaStore.setProjectAttributeForConnectedDrafts(draftNodes[0].id, projectAttributeValue);
+
+      const latestDraftNodes = useSchemaStore
+        .getState()
+        .nodes.filter((node) => node.data.mode === 'draft');
+      const nodeIds = latestDraftNodes.map((node) => node.id);
+      const { snapshots, txHash, createdEntities } = await deployDraftEntitiesBatch({
+        account,
+        entities: latestDraftNodes.map((node) => ({
+          label: node.data.label,
+          fields: node.data.fields,
+          expirationDuration: node.data.expirationDuration,
+          dataFields: node.data.dataFields,
+          projectAttributeValue,
+        })),
+      });
+      const snapshotsByNodeId = Object.fromEntries(
+        snapshots.map((snapshot, index) => [nodeIds[index], snapshot]),
+      );
+
+      schemaStore.replaceDraftNodesWithPersistedBatch(snapshotsByNodeId);
+      schemaStore.setBatchDeploymentContext({
+        deployedAt: new Date().toISOString(),
+        txHash,
+        entityCount: createdEntities.length,
+        createdEntityKeys: createdEntities,
+        usedGeneratedSeedValues: Boolean(schemaStore.seedGenerationContext),
+        note:
+          'Created all draft entities in one Arkiv mutateEntities transaction. Foreign-key placeholders for entities created in the same transaction remain empty because Arkiv returns new $key values after the transaction is mined.',
+      });
+      await get().refreshBlockTiming();
+      await get().refreshBalance();
+      await get().refreshOwnedEntities();
+      return true;
+    } catch (error) {
+      set({
+        error: collisionCheckComplete
+          ? getErrorMessage(error, 'Arkiv batch deployment failed in MetaMask.')
+          : 'Could not verify whether this project name is already in use.',
+      });
+      return false;
     } finally {
       set({ checkingProjectCollision: false, deploying: false, deployingNodeId: undefined });
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowUp, Clipboard, Loader2, Trash2, Wand2, X } from 'lucide-react'
+import { ArrowUp, Clipboard, Loader2, Rocket, Sparkles, Trash2, Wand2, X } from 'lucide-react'
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import type {
   AssistantImplementationPlanResponse,
   AssistantMessage,
   AssistantSchemaResponse,
+  AssistantSeedValuesResponse,
 } from '@/lib/ai/assistantTypes'
 import { useArkivStore } from '@/store/useArkivStore'
 import { useSchemaStore } from '@/store/useSchemaStore'
@@ -27,11 +28,16 @@ import { useSchemaStore } from '@/store/useSchemaStore'
 const MODEL_UNAVAILABLE_MESSAGE =
   'Model unavailable temporarily, please try later.'
 
-type LoadingMode = 'discussIdea' | 'generateSchema' | 'generateImplementationPlan'
+type LoadingMode =
+  | 'discussIdea'
+  | 'generateSchema'
+  | 'generateSeedValues'
+  | 'generateImplementationPlan'
 
 const loadingLabels: Record<LoadingMode, string> = {
   discussIdea: 'Understanding your app',
   generateSchema: 'Building schema',
+  generateSeedValues: 'Generating seed values',
   generateImplementationPlan: 'Drafting implementation prompt',
 }
 
@@ -92,7 +98,13 @@ export function UseCasePromptPanel({
   const nodes = useSchemaStore((state) => state.nodes)
   const edges = useSchemaStore((state) => state.edges)
   const storedDeploymentNotes = useSchemaStore((state) => state.deploymentNotes)
+  const seedGenerationContext = useSchemaStore((state) => state.seedGenerationContext)
+  const batchDeploymentContext = useSchemaStore((state) => state.batchDeploymentContext)
   const loadGraphOfEntities = useSchemaStore((state) => state.loadGraphOfEntities)
+  const applyGeneratedSeedValues = useSchemaStore((state) => state.applyGeneratedSeedValues)
+  const deploySeededDraftsBatch = useArkivStore((state) => state.deploySeededDraftsBatch)
+  const deploying = useArkivStore((state) => state.deploying)
+  const checkingProjectCollision = useArkivStore((state) => state.checkingProjectCollision)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<AssistantMessage[]>([])
   const [plan, setPlan] = useState('')
@@ -118,6 +130,17 @@ export function UseCasePromptPanel({
         ? serializeCanvasToGeneratedDataModel(nodes, edges, storedDeploymentNotes)
         : undefined,
     [edges, hasExistingModel, nodes, storedDeploymentNotes],
+  )
+
+  const seedContext = useMemo(
+    () =>
+      seedGenerationContext || batchDeploymentContext
+        ? {
+            seedGeneration: seedGenerationContext ?? null,
+            batchDeployment: batchDeploymentContext ?? null,
+          }
+        : undefined,
+    [batchDeploymentContext, seedGenerationContext],
   )
 
   useEffect(() => {
@@ -292,6 +315,7 @@ export function UseCasePromptPanel({
           messages,
           useCase,
           currentModel,
+          seedContext,
           connectedWalletAddress,
         }),
       })
@@ -309,6 +333,74 @@ export function UseCasePromptPanel({
     } finally {
       setLoadingMode(undefined)
     }
+  }
+
+  const handleGenerateSeedValues = async () => {
+    const useCase = getConversationUseCase(messages, input)
+
+    if (!currentModel) {
+      setError('Build a schema before generating seed values.')
+      return
+    }
+
+    setError(undefined)
+    setLoadingMode('generateSeedValues')
+
+    try {
+      const response = await fetch('/api/ai/assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mode: 'generateSeedValues',
+          messages,
+          useCase,
+          currentModel,
+          connectedWalletAddress,
+        }),
+      })
+
+      const payload = (await response.json()) as AssistantSeedValuesResponse
+
+      if (!response.ok || !payload.dataModel) {
+        throw new Error(payload.error || 'Failed to generate seed values.')
+      }
+
+      applyGeneratedSeedValues(payload.dataModel)
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        createMessage(
+          'assistant',
+          `Generated seed values for ${payload.dataModel?.entities.length ?? 0} draft entities. Foreign-key fields that depend on newly created entities stayed empty for single-transaction deployment.`,
+        ),
+      ])
+    } catch (nextError) {
+      console.error('[ai:assistant:client] seed generation failed', nextError)
+      setError(MODEL_UNAVAILABLE_MESSAGE)
+    } finally {
+      setLoadingMode(undefined)
+    }
+  }
+
+  const handleDeploySeedValues = async () => {
+    setError(undefined)
+    const deployed = await deploySeededDraftsBatch()
+
+    if (!deployed) {
+      return
+    }
+
+    const latestContext = useSchemaStore.getState().batchDeploymentContext
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      createMessage(
+        'assistant',
+        latestContext
+          ? `Deployed ${latestContext.entityCount} populated entities in one Arkiv transaction: \`${latestContext.txHash}\`.`
+          : 'Deployed the populated entities in one Arkiv transaction.',
+      ),
+    ])
   }
 
   const handleCopyPlan = async () => {
@@ -339,6 +431,7 @@ export function UseCasePromptPanel({
         hasExistingModel,
         hasCurrentModel: Boolean(currentModel),
         currentModel: currentModel ?? null,
+        seedContext: seedContext ?? null,
         error: error ?? null,
       },
     }
@@ -408,6 +501,8 @@ export function UseCasePromptPanel({
 
   const canClearChat = messages.length > 0 || plan.length > 0 || input.length > 0
   const canCopyThread = messages.length > 0 || plan.length > 0
+  const hasDraftEntities = nodes.some((node) => node.data.mode === 'draft')
+  const hasSeedValues = Boolean(seedGenerationContext)
 
   return (
     <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-[#ffd8c3]/80 bg-white/95 backdrop-blur-md">
@@ -424,6 +519,42 @@ export function UseCasePromptPanel({
               Discuss, build, prompt
             </p>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateSeedValues}
+            disabled={isLoading || !currentModel || !hasDraftEntities}
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-[#ffc4a6] bg-[#fff8f4] px-2.5 text-xs font-bold text-[#ff7a45] shadow-sm transition hover:bg-[#fff0e8] disabled:opacity-40"
+          >
+            {loadingMode === 'generateSeedValues' ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5" />
+            )}
+            Seeds
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleDeploySeedValues}
+            disabled={
+              isLoading ||
+              deploying ||
+              checkingProjectCollision ||
+              !hasDraftEntities ||
+              !hasSeedValues
+            }
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-gray-300 bg-white px-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40"
+          >
+            {deploying || checkingProjectCollision ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Rocket className="size-3.5" />
+            )}
+            Deploy Seeds
+          </Button>
           <Button
             type="button"
             variant="outline"

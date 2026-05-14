@@ -521,14 +521,21 @@ export async function POST(request: Request) {
   if (
     mode !== 'discussIdea' &&
     mode !== 'generateSchema' &&
+    mode !== 'generateSeedValues' &&
     mode !== 'generateImplementationPlan'
   ) {
     return Response.json({ error: 'Unsupported assistant mode.' }, { status: 400 })
   }
 
-  if (!useCase) {
+  if (!useCase && mode !== 'generateSeedValues') {
     return Response.json({ error: 'Describe the app idea first.' }, { status: 400 })
   }
+
+  if (mode === 'generateSeedValues' && !body.currentModel) {
+    return Response.json({ error: 'Build a schema before generating seed values.' }, { status: 400 })
+  }
+
+  const requiredUseCase = useCase ?? ''
 
   try {
     const skillContextResult = await getSkillContextResult()
@@ -546,7 +553,7 @@ export async function POST(request: Request) {
         apiKey,
         model,
         mode: body.schemaMode === 'edit' ? 'edit' : 'create',
-        useCase,
+        useCase: requiredUseCase,
         currentModel: body.currentModel,
         skillContext,
         requestId,
@@ -559,6 +566,35 @@ export async function POST(request: Request) {
       })
     }
 
+    if (mode === 'generateSeedValues') {
+      const seedUseCase = [
+        'Populate seed values for the existing Arkiv visual schema model.',
+        'Return the full model JSON using the same exact entities, same relations, same indexed attribute names/types, and same data field keys.',
+        'Only change indexedAttributes[].value and dataFields[].value where a useful concrete demo/bootstrap value is appropriate.',
+        'Keep project and entityType values unchanged.',
+        'Keep every cross-entity foreign-key value empty string when the parent entity is part of this same undeployed model, because Arkiv returns new $key values only after the batch create transaction is mined.',
+        'Use realistic values that match the user app idea and make the entities ready to deploy as demo data.',
+        useCase ? `User app idea and constraints:\n${useCase}` : undefined,
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+      const { dataModel } = await generateDataModelFromAi({
+        endpointUrl,
+        apiKey,
+        model,
+        mode: 'edit',
+        useCase: seedUseCase,
+        currentModel: body.currentModel,
+        skillContext,
+        requestId,
+      })
+
+      return Response.json({
+        dataModel,
+        model,
+      })
+    }
+
     if (mode === 'generateImplementationPlan') {
       const plan = await postTextCompletion({
         endpointUrl,
@@ -567,8 +603,9 @@ export async function POST(request: Request) {
         systemPrompt: buildImplementationPlanSystemPrompt(skillContext),
         userPrompt: buildImplementationPlanUserPrompt({
           messages,
-          useCase,
+          useCase: requiredUseCase,
           currentModel: body.currentModel,
+          seedContext: body.seedContext,
         }),
         requestId,
         maxTokens: 3600,
@@ -586,7 +623,7 @@ export async function POST(request: Request) {
       model,
       systemPrompt: buildAssistantSystemPrompt(skillContext),
       messages,
-      useCase,
+      useCase: requiredUseCase,
       requestId,
     })
 
