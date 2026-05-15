@@ -15,6 +15,7 @@ import {
 
 const PROJECT_ATTRIBUTE_KEY = "project";
 const LEGACY_PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
+const ENTITY_TYPE_ATTRIBUTE_KEY = "entityType";
 const WALLET_PREFIX_PATTERN = /^(0x[a-fA-F0-9]{40})(-.+)?$/;
 
 const durationDaysMap: Record<ExpirationDuration, number> = {
@@ -144,23 +145,7 @@ const getEntityLabel = (
   entity: Entity,
   payload: DesignerPayload | Record<string, unknown> | null,
 ) => {
-  // 1. Prioritize 'type' from attributes
-  const typeAttribute = entity.attributes.find((attribute) => attribute.key === "type");
-  if (typeof typeAttribute?.value === "string" && typeAttribute.value.trim().length > 0) {
-    return typeAttribute.value.trim();
-  }
-
-  // 2. Check 'type' in payload
-  if (
-    payload &&
-    "type" in payload &&
-    typeof payload.type === "string" &&
-    payload.type.trim().length > 0
-  ) {
-    return payload.type.trim();
-  }
-
-  // 3. Fallback to 'name' (or 'entityName') in payload
+  // 1. Preserve visual modeler names from designer payloads.
   if (payloadLooksLikeDesignerPayload(payload) && payload.entityName) {
     return payload.entityName.trim();
   }
@@ -174,6 +159,29 @@ const getEntityLabel = (
     return payload.entityName.trim();
   }
 
+  // 2. For generic Arkiv entities, entityType is the schema name.
+  const entityTypeAttribute = entity.attributes.find(
+    (attribute) => attribute.key === ENTITY_TYPE_ATTRIBUTE_KEY,
+  );
+  if (typeof entityTypeAttribute?.value === "string" && entityTypeAttribute.value.trim().length > 0) {
+    return entityTypeAttribute.value.trim();
+  }
+
+  // 3. Fall back to older type/name conventions.
+  const typeAttribute = entity.attributes.find((attribute) => attribute.key === "type");
+  if (typeof typeAttribute?.value === "string" && typeAttribute.value.trim().length > 0) {
+    return typeAttribute.value.trim();
+  }
+
+  if (
+    payload &&
+    "type" in payload &&
+    typeof payload.type === "string" &&
+    payload.type.trim().length > 0
+  ) {
+    return payload.type.trim();
+  }
+
   if (
     payload &&
     "name" in payload &&
@@ -183,12 +191,12 @@ const getEntityLabel = (
     return payload.name.trim();
   }
 
-  // 4. Check 'name' in attributes
   const nameAttribute = entity.attributes.find((attribute) => attribute.key === "name");
   if (typeof nameAttribute?.value === "string" && nameAttribute.value.trim().length > 0) {
     return nameAttribute.value.trim();
   }
 
+  // 4. Project is only a grouping fallback, never the preferred entity label.
   const projectAttributeValue = getProjectAttributeValue(entity);
   if (projectAttributeValue?.trim()) {
     return formatProjectAttributeLabel(projectAttributeValue);
@@ -271,9 +279,10 @@ export const mapEntityToSnapshot = (
 
   return {
     entityKey: entity.key,
-    label: projectAttributeValue ? formatProjectAttributeLabel(projectAttributeValue) : "",
+    label: getEntityLabel(entity, payload),
     fields,
     projectAttributeValue,
+    creator: entity.creator,
     explorerUrl: getEntityExplorerUrl(entity.key),
     systemAttributes,
     confirmedExpirationBlock: formatBlockNumber(entity.expiresAtBlock),

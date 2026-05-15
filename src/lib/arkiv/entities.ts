@@ -372,18 +372,82 @@ const buildCreateInputFromDraft = ({
   };
 };
 
+type DraftBatchEntity = {
+  nodeId: string;
+  label: string;
+  fields: EntityField[];
+  expirationDuration: ExpirationDuration;
+  dataFields?: EntityDataField[];
+  projectAttributeValue?: string;
+};
+
+const buildDataPayload = (dataFields?: EntityDataField[]) => {
+  const validDataFields = (dataFields ?? []).filter((df) => df.key.trim().length > 0);
+  const dataObj = Object.fromEntries(
+    validDataFields.map((df) => [df.key.trim(), df.value]),
+  );
+
+  return jsonToPayload(dataObj);
+};
+
+const resolveBatchRelationFields = (
+  fields: EntityField[],
+  createdKeyByNodeId: Map<string, Hex>,
+) => {
+  let changed = false;
+
+  const resolvedFields = fields.map((field) => {
+    if (!field.relationNodeId) {
+      return field;
+    }
+
+    const relationEntityKey = createdKeyByNodeId.get(field.relationNodeId);
+    if (!relationEntityKey || field.value === relationEntityKey) {
+      return field;
+    }
+
+    changed = true;
+    return {
+      ...field,
+      value: relationEntityKey,
+    };
+  });
+
+  return { fields: resolvedFields, changed };
+};
+
+const buildUpdateInputFromCreatedDraft = ({
+  entity,
+  entityKey,
+  fields,
+}: {
+  entity: DraftBatchEntity;
+  entityKey: Hex;
+  fields: EntityField[];
+}) => {
+  const validFields = fields.filter(
+    (field) => field.name.trim().length > 0 && field.value.trim().length > 0,
+  );
+
+  return {
+    entityKey,
+    payload: buildDataPayload(entity.dataFields),
+    contentType: 'application/json',
+    attributes: buildIndexedAttributes({
+      fields: validFields,
+      label: entity.label.trim(),
+      projectAttributeValue: entity.projectAttributeValue,
+    }),
+    expiresIn: getExpirationSeconds(entity.expirationDuration),
+  };
+};
+
 export const deployDraftEntitiesBatch = async ({
   account,
   entities,
 }: {
   account: Hex;
-  entities: Array<{
-    label: string;
-    fields: EntityField[];
-    expirationDuration: ExpirationDuration;
-    dataFields?: EntityDataField[];
-    projectAttributeValue?: string;
-  }>;
+  entities: DraftBatchEntity[];
 }) => {
   if (entities.length === 0) {
     throw new Error("Add at least one draft entity before deploying.");
@@ -404,6 +468,33 @@ export const deployDraftEntitiesBatch = async ({
   }
 
   const blockTiming = await fetchBlockTiming();
+  const createdKeyByNodeId = new Map<string, Hex>(
+    entities.map((entity, index) => [entity.nodeId, createdEntities[index]]),
+  );
+  const resolvedFieldsByNodeId = new Map<string, EntityField[]>();
+  const updates = entities.flatMap((entity, index) => {
+    const entityKey = createdEntities[index];
+    const { fields, changed } = resolveBatchRelationFields(
+      entity.fields,
+      createdKeyByNodeId,
+    );
+
+    resolvedFieldsByNodeId.set(entity.nodeId, fields);
+
+    if (!entityKey || !changed) {
+      return [];
+    }
+
+    return [buildUpdateInputFromCreatedDraft({ entity, entityKey, fields })];
+  });
+
+  let relationUpdateTxHash: string | undefined;
+
+  if (updates.length > 0) {
+    const updateResult = await walletClient.mutateEntities({ updates });
+    relationUpdateTxHash = updateResult.txHash;
+  }
+
   const snapshots = await Promise.all(
     createdEntities.map((entityKey) => fetchEntityDetails(entityKey, blockTiming)),
   );
@@ -411,6 +502,8 @@ export const deployDraftEntitiesBatch = async ({
   return {
     snapshots,
     txHash,
+    relationUpdateTxHash,
     createdEntities,
+    resolvedFieldsByNodeId,
   };
 };

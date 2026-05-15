@@ -30,8 +30,11 @@ type EntityGraphNode = {
 const isEntityKey = (value: string): value is Hex =>
   value.startsWith('0x') && value.length === 66
 
+const normalizeAddress = (value?: string) => value?.trim().toLowerCase()
+
 export const mapSnapshotToNodeData = (
   snapshot: PersistedEntityGraphSnapshot,
+  connectedAccount?: Hex,
 ): EntityNodeData => ({
   mode: 'persisted',
   label: snapshot.label,
@@ -40,6 +43,10 @@ export const mapSnapshotToNodeData = (
   fields: snapshot.fields,
   dataFields: [],
   entityKey: snapshot.entityKey,
+  creator: snapshot.creator,
+  isExternalCreator:
+    Boolean(snapshot.creator && connectedAccount) &&
+    normalizeAddress(snapshot.creator) !== normalizeAddress(connectedAccount),
   explorerUrl: snapshot.explorerUrl,
   systemAttributes: snapshot.systemAttributes,
   confirmedExpirationBlock: snapshot.confirmedExpirationBlock,
@@ -97,7 +104,12 @@ export const buildEntityGraphLayout = (
   for (const snapshot of snapshots) {
     const parentKeys = snapshot.fields
       .map((field) => field.value)
-      .filter((value): value is Hex => isEntityKey(value) && connectedKeys.has(value))
+      .filter(
+        (value): value is Hex =>
+          isEntityKey(value) &&
+          value !== snapshot.entityKey &&
+          connectedKeys.has(value),
+      )
 
     nodesMap.set(snapshot.entityKey, {
       snapshot,
@@ -106,27 +118,36 @@ export const buildEntityGraphLayout = (
     })
   }
 
-  let changed = true
-  let iterations = 0
+  const visiting = new Set<Hex>()
+  const visited = new Set<Hex>()
 
-  while (changed && iterations < 100) {
-    changed = false
-
-    for (const node of nodesMap.values()) {
-      const maxParentLevel =
-        node.parentKeys.length > 0
-          ? Math.max(
-              ...node.parentKeys.map((parentKey) => nodesMap.get(parentKey)?.level ?? 0),
-            )
-          : -1
-
-      if (node.level !== maxParentLevel + 1) {
-        node.level = maxParentLevel + 1
-        changed = true
-      }
+  const resolveLevel = (key: Hex): number => {
+    const node = nodesMap.get(key)
+    if (!node) {
+      return 0
     }
 
-    iterations += 1
+    if (visited.has(key)) {
+      return node.level
+    }
+
+    if (visiting.has(key)) {
+      return 0
+    }
+
+    visiting.add(key)
+    node.level =
+      node.parentKeys.length > 0
+        ? Math.max(...node.parentKeys.map((parentKey) => resolveLevel(parentKey))) + 1
+        : 0
+    visiting.delete(key)
+    visited.add(key)
+
+    return node.level
+  }
+
+  for (const key of nodesMap.keys()) {
+    resolveLevel(key)
   }
 
   const levelGroups = new Map<number, Hex[]>()
@@ -210,9 +231,11 @@ const decorateRelationFields = ({
 export const buildCanvasGraphFromSnapshots = ({
   snapshots,
   selectedEntityKey,
+  connectedAccount,
 }: {
   snapshots: PersistedEntityGraphSnapshot[]
   selectedEntityKey: Hex
+  connectedAccount?: Hex
 }): { nodes: SchemaNode[]; edges: SchemaEdge[] } => {
   const connectedKeys = new Set(snapshots.map((snapshot) => snapshot.entityKey))
   const { nodesMap, levelGroups } = buildEntityGraphLayout(snapshots, connectedKeys)
@@ -263,7 +286,7 @@ export const buildCanvasGraphFromSnapshots = ({
           y: SCHEMA_ENTITY_START_Y + index * ENTITY_VERTICAL_GAP,
         },
         data: {
-          ...mapSnapshotToNodeData(nodeInfo.snapshot),
+          ...mapSnapshotToNodeData(nodeInfo.snapshot, connectedAccount),
           fields: decoratedFieldsByKey.get(key) ?? nodeInfo.snapshot.fields,
         },
         selected: key === selectedEntityKey,

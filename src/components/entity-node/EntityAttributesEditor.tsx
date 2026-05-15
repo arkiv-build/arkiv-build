@@ -1,10 +1,14 @@
 'use client'
 
-import { ChevronDown, Link, Minus, Plus } from 'lucide-react'
+import { ChevronDown, Link, Plus, X } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { inputClassName, selectClassName } from '@/components/entity-node/styles'
+import {
+  inputClassName,
+  removeCircleButtonClassName,
+  selectClassName,
+} from '@/components/entity-node/styles'
 import { sanitizeIdentifier } from '@/lib/arkiv/schema'
 import type { EntityField, IndexedAttributeType } from '@/lib/arkiv/types'
 import { useArkivStore } from '@/store/useArkivStore'
@@ -69,10 +73,18 @@ export function EntityAttributesEditor({
         const isRelation = !!field.edgeId
 
         return (
-          <div
-            key={field.id}
-            className="grid grid-cols-[clamp(100px,1fr,150px)_1fr_auto_auto] items-end gap-3 pb-2"
-          >
+          <div key={field.id} className="relative pb-2 pr-8">
+            <button
+              type="button"
+              onClick={() => removeField(nodeId, field.id)}
+              className={`${removeCircleButtonClassName} absolute right-0 top-8`}
+              aria-label={isRelation ? 'Remove relation' : 'Remove attribute'}
+              title={isRelation ? 'Remove relation (also removes edge)' : 'Remove attribute'}
+            >
+              <X className="size-3.5" />
+            </button>
+
+            <div className="grid grid-cols-[clamp(100px,1fr,150px)_1fr_auto] items-end gap-3">
             <div>
               <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
                 Key
@@ -137,14 +149,7 @@ export function EntityAttributesEditor({
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
               </div>
             </div>
-
-            <button
-              onClick={() => removeField(nodeId, field.id)}
-              className="nodrag nopan mb-1 flex size-10 shrink-0 items-center justify-center rounded-xl text-gray-400 border border-gray-100 bg-white shadow-md transition hover:bg-gray-50 hover:text-red-500"
-              title={isRelation ? 'Remove relation (also removes edge)' : 'Remove field'}
-            >
-              <Minus className="size-4" />
-            </button>
+            </div>
           </div>
         )
       })}

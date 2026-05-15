@@ -30,12 +30,13 @@ export function EntityHeader({
   const removeNode = useSchemaStore((s) => s.removeNode)
   const updateExpirationDuration = useSchemaStore((s) => s.updateExpirationDuration)
   const account = useArkivStore((s) => s.account)
+  const accentColor = data.isExternalCreator ? 'bg-rose-500' : 'bg-[#ff7a45]'
 
   return (
     <div className="p-7 pb-5">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-4">
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-[16px] bg-[#ff7a45] text-white">
+          <div className={`flex size-14 shrink-0 items-center justify-center rounded-[16px] ${accentColor} text-white`}>
             <Database className="size-6" />
           </div>
           <input

@@ -55,6 +55,7 @@ export type PersistedEntitySnapshot = {
   entityKey: Hex;
   label: string;
   projectAttributeValue?: string;
+  creator?: Hex;
   fields: EntityField[];
   explorerUrl: string;
   systemAttributes: SystemAttribute[];

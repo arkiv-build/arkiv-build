@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ExternalLink, Layers, LoaderCircle, RefreshCw, Wallet } from "lucide-react";
+import { useMemo } from "react";
+import { Layers, LoaderCircle, RefreshCw, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useArkivStore } from "@/store/useArkivStore";
 import type { OwnedArkivEntitySummary } from "@/lib/arkiv/types";
-import type { Hex } from "viem";
 
 const shortKey = (value: string) => `${value.slice(0, 10)}...${value.slice(-6)}`
 
@@ -59,7 +58,7 @@ const groupEntities = (entities: OwnedArkivEntitySummary[]): RenderItem[] => {
 
 type EntityCardProps = {
   entity: OwnedArkivEntitySummary
-  onLoad: (key: Hex) => void
+  onLoad: (entity: OwnedArkivEntitySummary) => void
   disabled: boolean
   showProjectAttribute?: boolean
   variant?: "default" | "project"
@@ -74,7 +73,7 @@ function EntityCard({ entity, onLoad, disabled, showProjectAttribute = true, var
   return (
     <button
       type="button"
-      onClick={() => onLoad(entity.key)}
+      onClick={() => onLoad(entity)}
       disabled={!entity.compatible || disabled}
       className={containerClass}
     >
@@ -103,17 +102,6 @@ function EntityCard({ entity, onLoad, disabled, showProjectAttribute = true, var
           <p className="mt-1 text-[12px] text-rose-600">{entity.unsupportedReason}</p>
         ) : null}
       </div>
-
-      <a
-        href={entity.explorerUrl}
-        target="_blank"
-        rel="noreferrer"
-        onClick={(event) => event.stopPropagation()}
-        className="rounded-lg border border-gray-100 bg-gray-50 p-2 text-gray-400 transition-all duration-300 hover:bg-[#ff7a45] hover:text-white hover:scale-110 hover:shadow-md group-hover:border-transparent"
-        aria-label="Open in Arkiv explorer"
-      >
-        <ExternalLink className="size-3.5" />
-      </a>
     </button>
   )
 }
@@ -121,52 +109,14 @@ function EntityCard({ entity, onLoad, disabled, showProjectAttribute = true, var
 type StackedGroupProps = {
   projectAttributeValue: string
   entities: OwnedArkivEntitySummary[]
-  onLoad: (key: Hex) => void
+  onLoad: (projectAttributeValue: string) => void
   disabled: boolean
 }
 
 function StackedGroup({ projectAttributeValue, entities, onLoad, disabled }: StackedGroupProps) {
-  const [expanded, setExpanded] = useState(false)
   const count = entities.length
   const previewLayers = Math.min(count - 1, 2)
   const parsed = splitProjectAttribute(projectAttributeValue)
-
-  if (expanded) {
-    return (
-      <div className="rounded-2xl border border-orange-200/70 bg-orange-50/40 p-2.5">
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-orange-100/60"
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <Layers className="size-3.5 shrink-0 text-[#ff7a45]" />
-            <div className="min-w-0">
-              {parsed.address ? (
-                <p className="truncate font-mono text-[10px] text-gray-400">{parsed.address}</p>
-              ) : null}
-              <p className="truncate text-sm font-bold text-gray-900">{parsed.name}</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-[#ff7a45]/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#ff7a45]">
-              {count}
-            </span>
-          </div>
-          <ChevronDown className="size-3.5 shrink-0 rotate-180 text-gray-500 transition-transform" />
-        </button>
-        <div className="space-y-2">
-          {entities.map((entity) => (
-            <EntityCard
-              key={entity.key}
-              entity={entity}
-              onLoad={onLoad}
-              disabled={disabled}
-              showProjectAttribute={false}
-            />
-          ))}
-        </div>
-      </div>
-    )
-  }
 
   const top = entities[0]
 
@@ -194,8 +144,9 @@ function StackedGroup({ projectAttributeValue, entities, onLoad, disabled }: Sta
 
       <button
         type="button"
-        onClick={() => setExpanded(true)}
-        className="group relative flex w-full items-start justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 text-left shadow-sm ring-1 ring-gray-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/10 hover:ring-[#ff7a45] hover:border-transparent active:scale-[0.98]"
+        onClick={() => onLoad(projectAttributeValue)}
+        disabled={disabled}
+        className="group relative flex w-full items-start justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 text-left shadow-sm ring-1 ring-gray-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/10 hover:ring-[#ff7a45] hover:border-transparent active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -214,11 +165,11 @@ function StackedGroup({ projectAttributeValue, entities, onLoad, disabled }: Sta
           <p className="mt-1 text-[12px] text-gray-500">
             {count} entities share this project
           </p>
-          <p className="mt-1 text-[12px] text-gray-400">Click to expand</p>
+          <p className="mt-1 text-[12px] text-gray-400">Click to load project graph</p>
         </div>
 
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 text-gray-400 transition-all duration-300 group-hover:border-transparent group-hover:bg-[#ff7a45] group-hover:text-white">
-          <ChevronDown className="size-3.5" />
+          <Layers className="size-3.5" />
         </div>
       </button>
     </div>
@@ -233,6 +184,17 @@ export function ArkivOwnedEntitiesPanel() {
   const loadingSelectedEntity = useArkivStore((state) => state.loadingSelectedEntity)
   const refreshOwnedEntities = useArkivStore((state) => state.refreshOwnedEntities)
   const loadEntityIntoCanvas = useArkivStore((state) => state.loadEntityIntoCanvas)
+  const loadProjectEntitiesIntoCanvas = useArkivStore((state) => state.loadProjectEntitiesIntoCanvas)
+
+  const loadEntityOrProjectIntoCanvas = (entity: OwnedArkivEntitySummary) => {
+    const projectAttributeValue = entity.projectAttributeValue?.trim()
+    if (projectAttributeValue) {
+      void loadProjectEntitiesIntoCanvas(projectAttributeValue)
+      return
+    }
+
+    void loadEntityIntoCanvas(entity.key)
+  }
 
   const renderItems = useMemo(() => groupEntities(ownedEntities), [ownedEntities])
   const { projectItems, otherItems } = useMemo(() => {
@@ -301,7 +263,7 @@ export function ArkivOwnedEntitiesPanel() {
                     <EntityCard
                       key={item.entity.key}
                       entity={item.entity}
-                      onLoad={loadEntityIntoCanvas}
+                      onLoad={loadEntityOrProjectIntoCanvas}
                       disabled={loadingSelectedEntity}
                       variant="project"
                     />
@@ -310,7 +272,7 @@ export function ArkivOwnedEntitiesPanel() {
                       key={item.projectAttributeValue}
                       projectAttributeValue={item.projectAttributeValue}
                       entities={item.entities}
-                      onLoad={loadEntityIntoCanvas}
+                      onLoad={(projectAttributeValue) => void loadProjectEntitiesIntoCanvas(projectAttributeValue)}
                       disabled={loadingSelectedEntity}
                     />
                   ),
@@ -332,7 +294,7 @@ export function ArkivOwnedEntitiesPanel() {
                     <EntityCard
                       key={item.entity.key}
                       entity={item.entity}
-                      onLoad={loadEntityIntoCanvas}
+                      onLoad={loadEntityOrProjectIntoCanvas}
                       disabled={loadingSelectedEntity}
                     />
                   ) : null,

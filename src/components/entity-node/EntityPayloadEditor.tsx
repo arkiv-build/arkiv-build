@@ -1,9 +1,12 @@
 'use client'
 
-import { Minus, Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 
 import { EntityDataEditor } from '@/components/entity-node/EntityDataEditor'
-import { inputClassName } from '@/components/entity-node/styles'
+import {
+  inputClassName,
+  removeCircleButtonClassName,
+} from '@/components/entity-node/styles'
 import { Button } from '@/components/ui/button'
 import { sanitizeIdentifier } from '@/lib/arkiv/schema'
 import { useSchemaStore, type EntityNodeData } from '@/store/useSchemaStore'
@@ -35,43 +38,48 @@ export function EntityPayloadEditor({
           {(data.dataFields ?? []).map((field) => (
             <div
               key={field.id}
-              className="grid grid-cols-[clamp(100px,1fr,150px)_1fr_auto] items-end gap-3"
+              className="relative pr-8"
             >
-              <div>
-                <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
-                  Key
-                </p>
-                <input
-                  value={field.key}
-                  onChange={(e) =>
-                    updateDataFieldKey(
-                      nodeId,
-                      field.id,
-                      sanitizeIdentifier(e.target.value),
-                    )
-                  }
-                  className={inputClassName}
-                  placeholder="e.g. bio"
-                />
-              </div>
-              <div>
-                <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
-                  Value
-                </p>
-                <input
-                  value={field.value}
-                  onChange={(e) => updateDataFieldValue(nodeId, field.id, e.target.value)}
-                  className={inputClassName}
-                  placeholder="Value…"
-                />
-              </div>
               <button
+                type="button"
                 onClick={() => removeDataField(nodeId, field.id)}
-                className="nodrag nopan mb-1 flex size-10 shrink-0 items-center justify-center rounded-xl text-gray-400 border border-gray-100 bg-white shadow-md transition hover:bg-gray-50 hover:text-red-500"
+                className={`${removeCircleButtonClassName} absolute right-0 top-8`}
+                aria-label="Remove data field"
                 title="Remove data field"
               >
-                <Minus className="size-4" />
+                <X className="size-3.5" />
               </button>
+
+              <div className="grid grid-cols-[clamp(100px,1fr,150px)_1fr] items-end gap-3">
+                <div>
+                  <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
+                    Key
+                  </p>
+                  <input
+                    value={field.key}
+                    onChange={(e) =>
+                      updateDataFieldKey(
+                        nodeId,
+                        field.id,
+                        sanitizeIdentifier(e.target.value),
+                      )
+                    }
+                    className={inputClassName}
+                    placeholder="e.g. bio"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-[12px] font-mono font-bold uppercase tracking-widest text-gray-400">
+                    Value
+                  </p>
+                  <input
+                    value={field.value}
+                    onChange={(e) => updateDataFieldValue(nodeId, field.id, e.target.value)}
+                    className={inputClassName}
+                    placeholder="Value…"
+                  />
+                </div>
+              </div>
             </div>
           ))}
         </div>

@@ -43,6 +43,8 @@ export type EntityNodeData = {
   fields: EntityField[];
   dataFields: EntityDataField[];
   entityKey?: Hex;
+  creator?: Hex;
+  isExternalCreator?: boolean;
   explorerUrl?: string;
   systemAttributes?: SystemAttribute[];
   confirmedExpirationBlock?: string;
@@ -63,6 +65,7 @@ export type SeedGenerationContext = {
 export type BatchDeploymentContext = {
   deployedAt: string;
   txHash: string;
+  relationUpdateTxHash?: string;
   entityCount: number;
   createdEntityKeys: string[];
   usedGeneratedSeedValues: boolean;

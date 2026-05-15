@@ -86,11 +86,10 @@ You have broad knowledge of how popular apps work. Use it. Do NOT wait for hardc
    - **Append-only history**: the record stays, a new record is added with status=removed, or a separate RemovedEvent is appended. Use this ONLY when audit trail is a stated requirement.
    - State the choice explicitly in deploymentNotes. Do NOT combine both (e.g., status=active + isDeleted=false flag) — that's the soft-delete anti-pattern.
 
-8. **Trust and privacy classification per entity.** For each entity, ask two questions:
+8. **Trust classification per entity.** For each entity, ask this question:
    - "Could a malicious wallet write a fake record here that the UI would display?" If yes, reads MUST filter by .createdBy(TRUSTED_WALLET) in addition to project + entityType. Document the trusted wallet in deploymentNotes.
-   - "Does this entity carry private data (DM content, health info, finance, identity)?" If yes, the client MUST encrypt before write — Arkiv data is publicly visible on the explorer. Document the encryption requirement in deploymentNotes.
 
-   Many entities are neither sensitive nor trust-critical (public Posts, Likes, Comments). But if any are, the design choice must be explicit, not silent.
+   Many entities are not trust-critical (public Posts, Likes, Comments). But if any are, the design choice must be explicit, not silent.
 
 9. **Translate to Arkiv.** Apply the Arkiv-specific rules in this prompt to the entities and attributes derived in steps 1–8:
    - Stored userId/walletAddress on user-identity entities → drop, use $creator.

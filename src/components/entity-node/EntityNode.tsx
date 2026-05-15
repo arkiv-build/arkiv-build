@@ -22,6 +22,10 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
 
   const isDraft = data.mode === 'draft'
   const shouldUseCompactCards = nodes.length > 3
+  const isExternalCreator = data.isExternalCreator === true
+  const handleClassName = isExternalCreator
+    ? '!-left-2 !z-20 !size-4 !border-[4px] !border-white !bg-rose-500'
+    : '!-left-2 !z-20 !size-4 !border-[4px] !border-white !bg-[#ff7a45]'
 
   const pendingParentNodes = useMemo(() => {
     if (!isDraft) return []
@@ -56,15 +60,19 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
       <Handle
         type="target"
         position={Position.Left}
-        className="!-left-2 !z-20 !size-4 !border-[4px] !border-white !bg-[#ff7a45]"
+        className={handleClassName}
       />
 
       <div
         className={[
           'overflow-hidden rounded-[24px] bg-white/90 backdrop-blur-xl transition-all duration-400 ease-out',
-          selected
-            ? 'border-[2px] border-[#ff7a45] shadow-2xl shadow-orange-500/20 ring-[8px] ring-[#ff7a45]/15 scale-[1.02]'
-            : 'border-[2px] border-transparent ring-1 ring-gray-200 shadow-xl hover:shadow-2xl hover:shadow-gray-300/50 hover:-translate-y-1',
+          isExternalCreator
+            ? selected
+              ? 'border-[2px] border-rose-500 shadow-2xl shadow-rose-500/20 ring-[8px] ring-rose-500/15 scale-[1.02]'
+              : 'border-[2px] border-rose-200 ring-1 ring-rose-200 shadow-xl shadow-rose-200/30 hover:shadow-2xl hover:shadow-rose-200/50 hover:-translate-y-1'
+            : selected
+              ? 'border-[2px] border-[#ff7a45] shadow-2xl shadow-orange-500/20 ring-[8px] ring-[#ff7a45]/15 scale-[1.02]'
+              : 'border-[2px] border-transparent ring-1 ring-gray-200 shadow-xl hover:shadow-2xl hover:shadow-gray-300/50 hover:-translate-y-1',
         ].join(' ')}
       >
         <EntityHeader
@@ -102,7 +110,7 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
       <Handle
         type="source"
         position={Position.Right}
-        className="!-right-2 !z-20 !size-4 !border-[4px] !border-white !bg-[#ff7a45]"
+        className={isExternalCreator ? '!-right-2 !z-20 !size-4 !border-[4px] !border-white !bg-rose-500' : '!-right-2 !z-20 !size-4 !border-[4px] !border-white !bg-[#ff7a45]'}
       />
     </div>
   )

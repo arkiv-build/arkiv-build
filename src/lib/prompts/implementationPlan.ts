@@ -23,11 +23,12 @@ Scope discipline — strict:
 
 Plan integrity — required sections at the top, before the schema:
 1. **Assumptions** — every design choice not explicitly confirmed by the user, in one bullet each. Include the MVP scope call (or any user-requested scope override).
-2. **Open questions** — anything you would re-ask the user before writing code.
+2. **Open questions** — anything you would re-ask the user before writing code. Do NOT list a question here if the plan already chooses an answer for it; put that choice under Assumptions instead.
 3. **Skill links** — always include this section immediately after Open questions, even if there are no open questions. Include these links exactly:
 ${ARKIV_SKILL_LINKS}
 
 Schema integrity — non-negotiable checks before returning the plan:
+- **Current visual schema is authoritative.** If a current visual schema model is provided, treat its entities, indexed attributes, data fields, relations, mutability, and FK names as the implementation contract. Do not add synthetic IDs, status fields, visibility fields, counters, or renamed FK fields unless you explicitly list them in a "Schema migrations" section with a concrete reason.
 - **No free-floating IDs.** Every ID-bearing field (\`*Id\`, \`*Address\`, \`writerId\`, \`threadId\`, \`ownerId\`, etc.) must either reference an entity defined in this plan's entity list, OR be explicitly called out as "free-floating string scope, no entity" with a one-line justification. Hedged phrasing like "if a UserProfile exists in the app" is forbidden — either define the entity or flag the field as free-floating; do not punt.
 - **Informative uniqueness.** Every ID/key field must state its uniqueness in a way that names the actual key. Tautological statements like "\`agentId\` — unique per agent" or "\`spaceId\` — unique per space" are forbidden. Use one of:
   - "globally unique identifier (UUID or hex address)"
@@ -76,8 +77,6 @@ File layout — match the existing project, do not invent a parallel tree:
 Reference this Arkiv skill context when relevant:
 ${skillContext}
 
-If the app involves any private, confidential, or sensitive data, the plan MUST include an explicit "Privacy and explorer visibility" section stating that Arkiv records are visible on the explorer unless encrypted client-side, and specify which fields should be encrypted before write.
-
 `
 
 export const buildImplementationPlanUserPrompt = ({
@@ -103,6 +102,9 @@ export const buildImplementationPlanUserPrompt = ({
     currentModel
       ? `Current visual schema model:\n${JSON.stringify(currentModel, null, 2)}`
       : 'Current visual schema model: none',
+    currentModel
+      ? 'Use the current visual schema model as authoritative. Do not add synthetic IDs, status fields, visibility fields, counters, or renamed FK fields unless the plan includes an explicit "Schema migrations" section explaining why the current schema must change.'
+      : undefined,
     seedContext
       ? `Seed generation and deployment context:\n${JSON.stringify(seedContext, null, 2)}`
       : 'Seed generation and deployment context: none',

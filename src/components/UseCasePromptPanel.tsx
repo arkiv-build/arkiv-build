@@ -14,6 +14,7 @@ import {
   hasMeaningfulCanvasModel,
   serializeCanvasToGeneratedDataModel,
   type DataModelGenerationMode,
+  type GeneratedDataModel,
 } from '@/lib/ai/dataModel'
 import { getErrorMessage } from '@/lib/errors'
 import type {
@@ -86,6 +87,20 @@ const getConversationUseCase = (
   return parts.join('\n\n')
 }
 
+const getAcceptedTraceModel = (
+  generationTrace: AssistantSchemaResponse['generationTrace'],
+): GeneratedDataModel | undefined => {
+  if (!generationTrace?.accepted) {
+    return undefined
+  }
+
+  const finalAttempt = generationTrace.attempts.find(
+    (attempt) => attempt.attempt === generationTrace.finalAttempt,
+  )
+
+  return finalAttempt?.candidateModel
+}
+
 type UseCasePromptPanelProps = {
   onSchemaBuilt?: () => void
   onClose?: () => void
@@ -133,6 +148,11 @@ export function UseCasePromptPanel({
         ? serializeCanvasToGeneratedDataModel(nodes, edges, storedDeploymentNotes)
         : undefined,
     [edges, hasExistingModel, nodes, storedDeploymentNotes],
+  )
+
+  const implementationPlanModel = useMemo(
+    () => getAcceptedTraceModel(generationTrace) ?? currentModel,
+    [currentModel, generationTrace],
   )
 
   const seedContext = useMemo(
@@ -325,7 +345,7 @@ export function UseCasePromptPanel({
           mode: 'generateImplementationPlan',
           messages,
           useCase,
-          currentModel,
+          currentModel: implementationPlanModel,
           seedContext,
           connectedWalletAddress,
         }),

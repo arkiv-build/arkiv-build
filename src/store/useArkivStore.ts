@@ -363,7 +363,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
     set({ loadingSelectedEntity: true, error: undefined });
 
     try {
-      const { ownedEntities, blockTiming } = get();
+      const { account, ownedEntities, blockTiming } = get();
       const connectedKeys = findConnectedEntityKeys(entityKey, ownedEntities);
 
       const snapshots = await Promise.all(
@@ -373,6 +373,7 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
       const { nodes, edges } = buildCanvasGraphFromSnapshots({
         snapshots,
         selectedEntityKey: entityKey,
+        connectedAccount: account,
       });
 
       useSchemaStore.getState().loadGraphOfEntities(nodes, edges);
@@ -398,21 +399,23 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
     set({ loadingSelectedEntity: true, error: undefined });
 
     try {
-      const entities = (await fetchEntitiesByProjectAttribute(projectAttributeValue)).filter(
-        (entity) => normalizeAddress(entity.creator) === normalizeAddress(account),
-      );
+      const entities = await fetchEntitiesByProjectAttribute(projectAttributeValue);
 
       if (entities.length === 0) {
-        throw new Error('No entities for this project were created by the connected wallet.');
+        throw new Error('No entities were found for this project.');
       }
 
       const { blockTiming } = get();
       const snapshots = await Promise.all(
         entities.map((entity) => fetchEntityDetails(entity.key, blockTiming)),
       );
+      const selectedEntity = entities.find(
+        (entity) => normalizeAddress(entity.creator) === normalizeAddress(account),
+      ) ?? entities[0];
       const { nodes, edges } = buildCanvasGraphFromSnapshots({
         snapshots,
-        selectedEntityKey: entities[0].key,
+        selectedEntityKey: selectedEntity.key,
+        connectedAccount: account,
       });
 
       if (options?.keepCurrentCanvas) {
@@ -673,9 +676,10 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
         .getState()
         .nodes.filter((node) => node.data.mode === 'draft');
       const nodeIds = latestDraftNodes.map((node) => node.id);
-      const { snapshots, txHash, createdEntities } = await deployDraftEntitiesBatch({
+      const { snapshots, txHash, relationUpdateTxHash, createdEntities } = await deployDraftEntitiesBatch({
         account,
         entities: latestDraftNodes.map((node) => ({
+          nodeId: node.id,
           label: node.data.label,
           fields: node.data.fields,
           expirationDuration: node.data.expirationDuration,
@@ -691,11 +695,14 @@ export const useArkivStore = create<ArkivState>((set, get) => ({
       schemaStore.setBatchDeploymentContext({
         deployedAt: new Date().toISOString(),
         txHash,
+        relationUpdateTxHash,
         entityCount: createdEntities.length,
         createdEntityKeys: createdEntities,
         usedGeneratedSeedValues: Boolean(schemaStore.seedGenerationContext),
         note:
-          'Created all draft entities in one Arkiv mutateEntities transaction. Foreign-key placeholders for entities created in the same transaction remain empty because Arkiv returns new $key values after the transaction is mined.',
+          relationUpdateTxHash
+            ? 'Created all draft entities, then wrote same-batch relation keys in a second Arkiv mutateEntities transaction.'
+            : 'Created all draft entities in one Arkiv mutateEntities transaction.',
       });
       await get().refreshBlockTiming();
       await get().refreshBalance();

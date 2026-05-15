@@ -6,3 +6,6 @@ export const selectClassName =
 
 export const compactToggleClassName =
   'nodrag nopan rounded-lg border border-[#ffbe9f] bg-[#fff5f0] px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-[#ff7a45] transition hover:border-[#ff7a45] hover:bg-[#ffe8db] hover:text-[#e66a39]'
+
+export const removeCircleButtonClassName =
+  'nodrag nopan flex size-6 shrink-0 items-center justify-center rounded-full border border-red-100 bg-white text-red-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-100'
