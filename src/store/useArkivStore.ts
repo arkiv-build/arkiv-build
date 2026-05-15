@@ -92,7 +92,7 @@ const getProjectAttributeValueForDraft = (node: SchemaNode) => {
     return name === LEGACY_PROJECT_ATTRIBUTE_KEY || name.toLowerCase() === PROJECT_ATTRIBUTE_KEY;
   })?.value.trim();
 
-  return fieldValue || node.data.projectAttributeValue?.trim() || node.data.label.trim();
+  return fieldValue || node.data.projectAttributeValue?.trim() || '';
 };
 
 const buildProjectCollisionPrompt = ({

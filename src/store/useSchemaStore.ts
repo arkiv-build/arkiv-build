@@ -76,6 +76,7 @@ type SchemaState = {
   nodes: SchemaNode[];
   edges: SchemaEdge[];
   deploymentNotes: string[];
+  canvasProjectAttributeValue?: string;
   seedGenerationContext?: SeedGenerationContext;
   batchDeploymentContext?: BatchDeploymentContext;
   activeNodeId?: string;
@@ -94,7 +95,8 @@ type SchemaState = {
     nodeId: string,
     snapshot: PersistedEntitySnapshot & { expirationDuration: ExpirationDuration },
   ) => void;
-  updateEntityName: (nodeId: string, name: string, walletAddress?: string) => void;
+  updateEntityName: (nodeId: string, name: string) => void;
+  setCanvasProjectAttributeValue: (projectAttributeValue: string) => void;
   setProjectAttributeForConnectedDrafts: (
     nodeId: string,
     projectAttributeValue: string,
@@ -135,6 +137,7 @@ type SchemaState = {
 const ENTITY_HORIZONTAL_GAP = 96;
 const PROJECT_ATTRIBUTE_KEY = "project";
 const LEGACY_PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
+const ENTITY_TYPE_ATTRIBUTE_KEY = "entityType";
 const WALLET_PREFIX_PATTERN = /^(0x[a-fA-F0-9]{40})(-.+)?$/;
 
 const getNextEntityPosition = (nodes: SchemaNode[]): XYPosition => {
@@ -172,6 +175,16 @@ const formatProjectAttributeLabel = (projectAttributeValue: string) => {
   return `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}${suffix}`;
 };
 
+const toEntityTypeValue = (entityName: string) => {
+  const trimmedName = entityName.trim();
+
+  if (!trimmedName) {
+    return "";
+  }
+
+  return trimmedName.charAt(0).toLowerCase() + trimmedName.slice(1);
+};
+
 const upsertProjectAttributeField = (
   fields: EntityField[],
   projectAttributeValue: string,
@@ -194,18 +207,46 @@ const upsertProjectAttributeField = (
     );
   }
 
-  const emptyFieldIndex = fields.findIndex(
-    (field) => !field.edgeId && !field.name.trim() && !field.value.trim(),
+  return [
+    {
+      id: `${SCHEMA_FIELD_ID_PREFIX}${crypto.randomUUID()}`,
+      name: PROJECT_ATTRIBUTE_KEY,
+      type: "indexedString" as const,
+      value: projectAttributeValue,
+    },
+    ...fields,
+  ];
+};
+
+const removeProjectAttributeField = (fields: EntityField[]) =>
+  fields.filter((field) => {
+    const name = field.name.trim();
+
+    return name !== LEGACY_PROJECT_ATTRIBUTE_KEY && name.toLowerCase() !== PROJECT_ATTRIBUTE_KEY;
+  });
+
+const upsertEntityTypeField = (
+  fields: EntityField[],
+  entityName: string,
+): EntityField[] => {
+  const entityTypeValue = toEntityTypeValue(entityName);
+
+  if (!entityTypeValue) {
+    return fields;
+  }
+
+  const entityTypeIndex = fields.findIndex(
+    (field) => field.name.trim() === ENTITY_TYPE_ATTRIBUTE_KEY,
   );
 
-  if (emptyFieldIndex >= 0) {
+  if (entityTypeIndex >= 0) {
     return fields.map((field, index) =>
-      index === emptyFieldIndex
+      index === entityTypeIndex
         ? {
             ...field,
-            name: PROJECT_ATTRIBUTE_KEY,
+            name: ENTITY_TYPE_ATTRIBUTE_KEY,
             type: "indexedString" as const,
-            value: projectAttributeValue,
+            value: entityTypeValue,
           }
         : field,
     );
@@ -214,9 +255,9 @@ const upsertProjectAttributeField = (
   return [
     {
       id: `${SCHEMA_FIELD_ID_PREFIX}${crypto.randomUUID()}`,
-      name: PROJECT_ATTRIBUTE_KEY,
+      name: ENTITY_TYPE_ATTRIBUTE_KEY,
       type: "indexedString" as const,
-      value: projectAttributeValue,
+      value: entityTypeValue,
     },
     ...fields,
   ];
@@ -254,15 +295,9 @@ const markSelectedNode = (nodes: SchemaNode[], nodeId: string) =>
     selected: node.id === nodeId,
   }));
 
-const createProjectAttributeValue = (_walletAddress: string | undefined, name: string) => {
-  const trimmedName = name.trim();
-
-  if (!trimmedName) {
-    return undefined;
-  }
-
-  return trimmedName;
-};
+const getCanvasProjectAttributeValue = (nodes: SchemaNode[]) =>
+  nodes.find((node) => node.data.projectAttributeValue?.trim())
+    ?.data.projectAttributeValue?.trim();
 
 const findConnectedNodeIds = (
   nodeId: string,
@@ -317,7 +352,10 @@ const applyProjectAttributeToConnectedNodes = (
                 ? formatProjectAttributeLabel(projectAttributeValue)
                 : node.data.label,
             projectAttributeValue,
-            fields: upsertProjectAttributeField(node.data.fields, projectAttributeValue),
+            fields: upsertEntityTypeField(
+              upsertProjectAttributeField(node.data.fields, projectAttributeValue),
+              node.data.label,
+            ),
           },
         }
       : node,
@@ -333,6 +371,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
   nodes: [{ ...createDraftEntityNode(SCHEMA_ENTITY_START_POSITION), selected: true }],
   edges: [],
   deploymentNotes: [],
+  canvasProjectAttributeValue: undefined,
   seedGenerationContext: undefined,
   batchDeploymentContext: undefined,
   activeNodeId: undefined,
@@ -429,8 +468,19 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     }),
   addDraftEntity: () =>
     set((state) => {
+      const draftNode = createDraftEntityNode(getNextEntityPosition(state.nodes));
       const nextNode = {
-        ...createDraftEntityNode(getNextEntityPosition(state.nodes)),
+        ...draftNode,
+        data: {
+          ...draftNode.data,
+          projectAttributeValue: state.canvasProjectAttributeValue,
+          fields: state.canvasProjectAttributeValue
+            ? upsertProjectAttributeField(
+                draftNode.data.fields,
+                state.canvasProjectAttributeValue,
+              )
+            : draftNode.data.fields,
+        },
         selected: true,
       };
 
@@ -448,6 +498,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       seedGenerationContext: undefined,
       batchDeploymentContext: undefined,
       activeNodeId: nextNode.id,
+      canvasProjectAttributeValue: undefined,
     });
   },
   clearCanvas: () => {
@@ -455,6 +506,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       nodes: [],
       edges: [],
       deploymentNotes: [],
+      canvasProjectAttributeValue: undefined,
       seedGenerationContext: undefined,
       batchDeploymentContext: undefined,
       activeNodeId: undefined,
@@ -528,36 +580,60 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
         activeNodeId: nodeId,
       };
     }),
-  updateEntityName: (nodeId, name, walletAddress) =>
+  updateEntityName: (nodeId, name) =>
     set((state) => {
-      const projectAttributeValue = createProjectAttributeValue(walletAddress, name);
       const nodesWithName = updateNodeById(state.nodes, nodeId, (node) => ({
         ...node,
         data: {
           ...node.data,
           label: name,
-          projectAttributeValue: projectAttributeValue ?? node.data.projectAttributeValue,
+          fields: upsertEntityTypeField(node.data.fields, name),
         },
       }));
 
       return {
-        nodes: applyProjectAttributeToConnectedNodes(
-          nodesWithName,
-          state.edges,
-          nodeId,
-          projectAttributeValue,
+        nodes: nodesWithName,
+      };
+    }),
+  setCanvasProjectAttributeValue: (projectAttributeValue) =>
+    set((state) => {
+      const trimmedValue = projectAttributeValue.trim();
+
+      return {
+        canvasProjectAttributeValue: trimmedValue || undefined,
+        nodes: state.nodes.map((node) =>
+          node.data.mode === "draft"
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  projectAttributeValue: trimmedValue || undefined,
+                  fields: upsertEntityTypeField(
+                    trimmedValue
+                      ? upsertProjectAttributeField(node.data.fields, trimmedValue)
+                      : removeProjectAttributeField(node.data.fields),
+                    node.data.label,
+                  ),
+                },
+              }
+            : node,
         ),
       };
     }),
   setProjectAttributeForConnectedDrafts: (nodeId, projectAttributeValue) =>
-    set((state) => ({
-      nodes: applyProjectAttributeToConnectedNodes(
-        state.nodes,
-        state.edges,
-        nodeId,
-        projectAttributeValue,
-      ),
-    })),
+    set((state) => {
+      const trimmedValue = projectAttributeValue.trim();
+
+      return {
+        canvasProjectAttributeValue: trimmedValue || state.canvasProjectAttributeValue,
+        nodes: applyProjectAttributeToConnectedNodes(
+          state.nodes,
+          state.edges,
+          nodeId,
+          trimmedValue,
+        ),
+      };
+    }),
   updateExpirationDuration: (nodeId, duration) =>
     set((state) => ({
       nodes: updateNodeById(state.nodes, nodeId, (node) => ({
@@ -867,6 +943,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       nodes,
       edges,
       deploymentNotes: deploymentNotes ?? [],
+      canvasProjectAttributeValue: getCanvasProjectAttributeValue(nodes),
       seedGenerationContext: undefined,
       batchDeploymentContext: undefined,
       activeNodeId: nodes.find((n) => n.selected)?.id ?? nodes[0]?.id,
@@ -907,6 +984,8 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
             },
           })),
         ],
+        canvasProjectAttributeValue:
+          state.canvasProjectAttributeValue ?? getCanvasProjectAttributeValue(nextNodes),
         edges: [
           ...state.edges,
           ...edges.filter(

@@ -84,7 +84,12 @@ export function EntityNode({ id, data, selected }: NodeProps<SchemaNode>) {
         />
 
         <div className="space-y-8 p-7 pt-2">
-          <EntityAttributesEditor nodeId={id} fields={data.fields} isDraft={isDraft} />
+          <EntityAttributesEditor
+            nodeId={id}
+            fields={data.fields}
+            isDraft={isDraft}
+            projectAttributeValue={data.projectAttributeValue}
+          />
 
           <EntityPayloadEditor nodeId={id} data={data} isDraft={isDraft} />
 

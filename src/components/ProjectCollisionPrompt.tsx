@@ -1,12 +1,21 @@
 'use client'
 
 import { AlertTriangle, Layers, X } from 'lucide-react'
+import type { FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useArkivStore } from '@/store/useArkivStore'
+import { useSchemaStore } from '@/store/useSchemaStore'
 
 const shortAddress = (value?: string) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : 'another wallet'
+
+const createSuggestedProjectAttributeValue = (value: string) => {
+  const baseValue = value.trim() || 'project'
+  const baseWithoutSuffix = baseValue.replace(/_[a-z0-9]{4,6}$/i, '')
+
+  return `${baseWithoutSuffix}_draft1`
+}
 
 export function ProjectCollisionPrompt() {
   const prompt = useArkivStore((state) => state.projectCollisionPrompt)
@@ -20,12 +29,36 @@ export function ProjectCollisionPrompt() {
   const ignoreProjectCollisionPrompt = useArkivStore(
     (state) => state.ignoreProjectCollisionPrompt,
   )
+  const activeDraftNodeId = useSchemaStore((state) => {
+    const activeNode = state.getActiveNode()
+
+    return activeNode?.data.mode === 'draft' ? activeNode.id : undefined
+  })
+  const setProjectAttributeForConnectedDrafts = useSchemaStore(
+    (state) => state.setProjectAttributeForConnectedDrafts,
+  )
 
   if (!prompt) {
     return null
   }
 
   const entityNoun = prompt.entities.length === 1 ? 'entity' : 'entities'
+  const suggestedProjectAttribute = createSuggestedProjectAttributeValue(
+    prompt.projectAttributeValue,
+  )
+  const updateProjectAttribute = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const projectAttributeValue = String(formData.get('projectAttribute') ?? '').trim()
+
+    if (!activeDraftNodeId || !projectAttributeValue) {
+      return
+    }
+
+    setProjectAttributeForConnectedDrafts(activeDraftNodeId, projectAttributeValue)
+    dismissProjectCollisionPrompt()
+  }
   const accent = prompt.sameCreator
     ? {
         ring: 'ring-orange-200/70',
@@ -139,7 +172,39 @@ export function ProjectCollisionPrompt() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+        <form
+          onSubmit={updateProjectAttribute}
+          className="mt-6 rounded-xl border border-gray-100 bg-gray-50/70 p-3"
+        >
+          <label
+            htmlFor="project-collision-project-attribute"
+            className="font-mono text-[11px] font-bold uppercase tracking-widest text-gray-400"
+          >
+            Project attribute
+          </label>
+
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              id="project-collision-project-attribute"
+              name="projectAttribute"
+              defaultValue={suggestedProjectAttribute}
+              className="h-10 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 font-mono text-xs text-gray-900 outline-none transition focus:border-gray-300 focus:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+              placeholder="project_slug_acme_7x9k"
+              disabled={!activeDraftNodeId}
+            />
+
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!activeDraftNodeId}
+              className="h-10 rounded-xl bg-[#1a1a1a] px-4 font-mono text-xs font-bold uppercase tracking-widest text-white shadow-sm hover:bg-[#333] disabled:opacity-70"
+            >
+              Update attribute
+            </Button>
+          </div>
+        </form>
+
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             size="sm"

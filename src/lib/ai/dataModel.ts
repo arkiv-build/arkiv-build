@@ -321,6 +321,18 @@ export const serializeCanvasToGeneratedDataModel = (
       })
     }
 
+    if (
+      !indexedAttributes.some(
+        (attribute) => attribute.name.trim() === ENTITY_TYPE_ATTRIBUTE_KEY,
+      )
+    ) {
+      indexedAttributes.splice(node.data.projectAttributeValue ? 1 : 0, 0, {
+        name: ENTITY_TYPE_ATTRIBUTE_KEY,
+        type: 'indexedString',
+        value: toEntityTypeValue(node.data.label.trim() || `Entity_${index + 1}`),
+      })
+    }
+
     return {
       name: node.data.label.trim() || `Entity_${index + 1}`,
       expirationDuration: node.data.expirationDuration,

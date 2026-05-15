@@ -5,6 +5,7 @@ import { desc, eq } from "@arkiv-network/sdk/query";
 import { ExpirationTime, jsonToPayload, stringToPayload } from "@arkiv-network/sdk/utils";
 
 import { createArkivPublicClient, createArkivWalletClient } from "@/lib/arkiv/client";
+import { sanitizeIdentifier } from "@/lib/arkiv/schema";
 import {
   getExpirationSeconds,
   mapEntityToSnapshot,
@@ -23,6 +24,7 @@ import { DESIGNER_APP_ID, DESIGNER_PAYLOAD_VERSION } from "@/lib/arkiv/types";
 
 const PROJECT_ATTRIBUTE_KEY = 'project'
 const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
+const ENTITY_TYPE_ATTRIBUTE_KEY = 'entityType'
 
 const PROJECT_QUERY_LIMIT = 100
 
@@ -139,6 +141,16 @@ const buildProjectAttributeValue = ({
   return label.trim();
 };
 
+const buildEntityTypeAttributeValue = (label: string) => {
+  const sanitizedLabel = sanitizeIdentifier(label.trim()) || label.trim();
+
+  if (!sanitizedLabel) {
+    return 'entity';
+  }
+
+  return sanitizedLabel.charAt(0).toLowerCase() + sanitizedLabel.slice(1);
+};
+
 const buildIndexedAttributes = ({
   fields,
   label,
@@ -163,6 +175,22 @@ const buildIndexedAttributes = ({
     attributes.unshift({
       key: PROJECT_ATTRIBUTE_KEY,
       value: buildProjectAttributeValue({ label, projectAttributeValue }),
+    });
+  }
+
+  const entityTypeAttribute = attributes.find(
+    (attribute) => attribute.key === ENTITY_TYPE_ATTRIBUTE_KEY,
+  );
+
+  if (!entityTypeAttribute) {
+    const projectAttributeIndex = attributes.findIndex(
+      (attribute) =>
+        attribute.key === LEGACY_PROJECT_ATTRIBUTE_KEY ||
+        attribute.key.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+    );
+    attributes.splice(projectAttributeIndex >= 0 ? projectAttributeIndex + 1 : 0, 0, {
+      key: ENTITY_TYPE_ATTRIBUTE_KEY,
+      value: buildEntityTypeAttributeValue(label),
     });
   }
 
