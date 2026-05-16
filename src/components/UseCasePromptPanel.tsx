@@ -366,6 +366,13 @@ export function UseCasePromptPanel({
       return
     }
 
+    if (!seedGenerationContext || !batchDeploymentContext) {
+      setError(
+        'Generate seed values and deploy them first, then create the MVP implementation prompt so the app is ready to test and build further.',
+      )
+      return
+    }
+
     setError(undefined)
     setLoadingMode('generateImplementationPlan')
 
@@ -408,6 +415,13 @@ export function UseCasePromptPanel({
 
     if (!useCase) {
       setError('Describe the app idea before generating a plan.')
+      return
+    }
+
+    if (!seedGenerationContext || !batchDeploymentContext) {
+      setError(
+        'Seed a few realistic values and deploy them first. After that, generate the MVP implementation prompt so the app is ready to test everything and build further.',
+      )
       return
     }
 
@@ -488,6 +502,17 @@ export function UseCasePromptPanel({
           : 'Deployed the populated entities in one Arkiv transaction.',
       ),
     ])
+  }
+
+  const handleSeedDeployAction = async () => {
+    if (!seedGenerationContext) {
+      await handleGenerateSeedValues()
+      return
+    }
+
+    if (!batchDeploymentContext) {
+      await handleDeploySeedValues()
+    }
   }
 
   const handleCopyPlan = async () => {
@@ -601,6 +626,21 @@ export function UseCasePromptPanel({
   const hasPlan = plan.trim().length > 0
   const hasDraftEntities = nodes.some((node) => node.data.mode === 'draft')
   const hasSeedValues = Boolean(seedGenerationContext)
+  const hasDeployedSeedValues = Boolean(batchDeploymentContext)
+  const seedDeployButtonLabel = !hasSeedValues
+    ? 'Seed Values'
+    : hasDeployedSeedValues
+      ? 'Deployed'
+      : 'Deploy'
+  const isSeedDeployActionBusy =
+    loadingMode === 'generateSeedValues' || deploying || checkingProjectCollision
+  const isSeedDeployButtonDisabled =
+    isLoading ||
+    deploying ||
+    checkingProjectCollision ||
+    !currentModel ||
+    hasDeployedSeedValues ||
+    (!hasDraftEntities && !hasSeedValues)
 
   return (
     <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-[#ffd8c3]/80 bg-white/95 backdrop-blur-md">
@@ -621,37 +661,20 @@ export function UseCasePromptPanel({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleGenerateSeedValues}
-            disabled={isLoading || !currentModel || !hasDraftEntities}
+            onClick={handleSeedDeployAction}
+            disabled={isSeedDeployButtonDisabled}
             className="flex h-8 items-center gap-1.5 rounded-[10px] border border-[#ffc4a6] bg-[#fff8f4] px-2.5 text-xs font-bold text-[#ff7a45] shadow-sm transition hover:bg-[#fff0e8] disabled:opacity-40"
           >
-            {loadingMode === 'generateSeedValues' ? (
+            {isSeedDeployActionBusy ? (
               <Loader2 className="size-3.5 animate-spin" />
+            ) : hasDeployedSeedValues ? (
+              <Check className="size-3.5" />
+            ) : hasSeedValues ? (
+              <Rocket className="size-3.5" />
             ) : (
               <Sparkles className="size-3.5" />
             )}
-            Seeds
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDeploySeedValues}
-            disabled={
-              isLoading ||
-              deploying ||
-              checkingProjectCollision ||
-              !hasDraftEntities ||
-              !hasSeedValues
-            }
-            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-gray-300 bg-white px-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40"
-          >
-            {deploying || checkingProjectCollision ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Rocket className="size-3.5" />
-            )}
-            Deploy Seeds
+            {seedDeployButtonLabel}
           </Button>
           <Button
             type="button"
@@ -666,7 +689,7 @@ export function UseCasePromptPanel({
             ) : (
               <Clipboard className="size-3.5" />
             )}
-            Prompt
+            MVP Prompt
           </Button>
           {hasPlan ? (
             <Button
@@ -919,10 +942,10 @@ export function UseCasePromptPanel({
               <Button
                 type="button"
                 onClick={() => void handleChooseExportTarget('nextjs')}
-                className="h-auto min-h-24 flex-col items-start rounded-[18px] bg-[#fff8f4] px-4 py-4 text-left text-[#ff7a45] shadow-sm hover:bg-[#fff0e8]"
+                className="h-auto min-h-24 w-full flex-col items-start gap-1.5 whitespace-normal rounded-[18px] bg-[#fff8f4] px-4 py-4 text-left text-[#ff7a45] shadow-sm hover:bg-[#fff0e8]"
               >
                 <span className="text-sm font-bold">Next.js</span>
-                <span className="text-xs leading-5 text-[#9a4b22]">
+                <span className="block w-full text-xs leading-5 text-[#9a4b22]">
                   App Router API routes and server modules under `src/lib/...`
                 </span>
               </Button>
@@ -931,10 +954,10 @@ export function UseCasePromptPanel({
                 type="button"
                 variant="outline"
                 onClick={() => void handleChooseExportTarget('express')}
-                className="h-auto min-h-24 flex-col items-start rounded-[18px] border-gray-200 bg-white px-4 py-4 text-left text-gray-800 shadow-sm hover:bg-gray-50"
+                className="h-auto min-h-24 w-full flex-col items-start gap-1.5 whitespace-normal rounded-[18px] border-gray-200 bg-white px-4 py-4 text-left text-gray-800 shadow-sm hover:bg-gray-50"
               >
                 <span className="text-sm font-bold">Express</span>
-                <span className="text-xs leading-5 text-gray-500">
+                <span className="block w-full text-xs leading-5 text-gray-500">
                   Express router setup with `req` / `res` handlers
                 </span>
               </Button>
