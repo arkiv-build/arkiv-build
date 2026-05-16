@@ -71,6 +71,23 @@ For qualifying Next.js UI plans, require a usable research-agent interface:
 - Source/citation list showing retrieved URLs/documents/chunks and how they supported the answer.
 - Clear distinction between Deep Agents file/scratch memory and Arkiv durable memory in developer-facing implementation notes, not as explanatory clutter in the end-user UI.`
 
+const LANGCHAIN_OPENAI_TOOL_PROTOCOL_INSTRUCTIONS = `LangChain/OpenAI tool protocol safety — conditional:
+- Apply this section ONLY when the generated implementation plan uses LangChain, LangGraph, Deep Agents, OpenAI tool calling, function/tool messages, agent memory, or chat with tools.
+- Do NOT include LangChain/OpenAI dependencies, protocol storage, or tool-routing requirements in app plans that do not use tool-calling chat or agent runtimes.
+
+For qualifying tool-using plans, required inference-state handling:
+- Never replay flattened \`user | assistant | system | tool\` transcript rows directly into LangChain/OpenAI.
+- Preserve the full inference-time message protocol exactly when replay is needed: assistant messages that request tools MUST carry their \`tool_calls\` metadata, and every tool result MUST carry the matching \`tool_call_id\`.
+- Ensure every \`tool\` role message is sent only as the response to the immediately preceding assistant message containing the matching \`tool_calls\`. A standalone \`tool\` message is invalid and can fail with "messages with role 'tool' must be a response to a preceding message with 'tool_calls'".
+- Persist assistant \`tool_calls\`, tool-call IDs, tool names, arguments, and matching tool results in the inference replay state if the app stores conversation state outside the agent runtime.
+- Keep durable Arkiv audit/memory records separate from inference protocol state. Arkiv entities such as \`Message\`, \`ToolCall\`, \`LongTermMemory\`, and \`Task\` are product history/query records, not interchangeable LangChain/OpenAI protocol objects.
+- Choose one inference source of truth: use LangGraph/Deep Agents checkpoint state OR replay a structured LangChain-compatible state from Arkiv. Do not combine hidden runtime checkpoint memory with a separately flattened Arkiv transcript unless the plan defines a strict sync adapter that round-trips native message metadata.
+
+For qualifying Next.js/Turbopack plans, required runtime integration:
+- Construct model clients explicitly in server-only modules, for example \`new ChatOpenAI({ model, apiKey })\` from \`@langchain/openai\`. Do NOT use dynamic provider/model-string loading that requires expression-based module resolution; it can fail bundling with "Cannot find module as expression is too dynamic".
+- Keep agent/model/tool construction behind App Router route handlers or server modules. Do not import server-only LangChain clients into Client Components.
+- Normalize LangChain, tool, and agent runtime failures into stable route JSON before returning to the client. Client code should receive a predictable error shape and must never fall through to parsing partial, empty, or non-JSON responses after server exceptions.`
+
 const IMPLEMENTATION_PLAN_TARGET_INSTRUCTIONS: Record<
   ImplementationPlanExportTarget,
   string
@@ -83,6 +100,7 @@ const IMPLEMENTATION_PLAN_TARGET_INSTRUCTIONS: Record<
     'Use Next.js App Router conventions with explicit client/server component boundaries and `src/app/api/.../route.ts` when backend endpoints are needed.',
     'For client-side state management, prefer the existing Zustand pattern with shared state under `src/store/...`.',
     'For styling, prefer Tailwind CSS and describe a polished, modern UI with strong hierarchy, spacing, responsive behavior, and intentional empty/loading/error states rather than generic placeholder screens.',
+    'Every generated UI surface that renders Arkiv entities must include per-entity actions when an `entityKey` is available: `View Entity` opens an in-app detail page, drawer, or modal using that key, and `Explorer` opens the Arkiv explorer URL for that entity in a new tab. Apply this to entity cards, tables, lists, search results, relationship panels, memory inspectors, and detail screens. For undeployed or draft entities, disable or hide `Explorer`; show `View Entity` only when there is local detail state to inspect.',
     'For implementation details that require general EVM interaction, prefer `ethers.js`. Keep Arkiv-specific reads/writes on the Arkiv SDK where required by the schema and data-access rules above.',
     'Do not describe Express app bootstrap, `req`/`res` route registration, or a standalone Node server unless the user explicitly asks for both.',
   ].join(' '),
@@ -109,6 +127,8 @@ Scope discipline — strict:
 - If the conversation contains an unresolved design question that the assistant itself raised (e.g., "shared vs isolated?", "one entity or split?"), do NOT silently resolve it. Either pick the simplest option AND list it under "Assumptions" at the top, or stop and surface the question — never bake an unstated decision into the schema.
 
 ${DEEP_AGENTS_PRODUCTION_INSTRUCTIONS}
+
+${LANGCHAIN_OPENAI_TOOL_PROTOCOL_INSTRUCTIONS}
 
 Plan integrity — required sections at the top, before the schema:
 1. **Assumptions** — every design choice not explicitly confirmed by the user, in one bullet each. Include the MVP scope call (or any user-requested scope override).
