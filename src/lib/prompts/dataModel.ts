@@ -87,7 +87,7 @@ You have broad knowledge of how popular apps work. Use it. Do NOT wait for hardc
    - State the choice explicitly in deploymentNotes. Do NOT combine both (e.g., status=active + isDeleted=false flag) — that's the soft-delete anti-pattern.
 
 8. **Trust classification per entity.** For each entity, ask this question:
-   - "Could a malicious wallet write a fake record here that the UI would display?" If yes, reads MUST filter by .createdBy(TRUSTED_WALLET) in addition to project + entityType. Document the trusted wallet in deploymentNotes.
+   - "Could a malicious wallet write a fake record here that the UI would display?" If yes, reads MUST filter by .createdBy(TRUSTED_WALLET) in addition to PROJECT_ATTRIBUTE + entityType. Document the trusted wallet in deploymentNotes.
 
    Many entities are not trust-critical (public Posts, Likes, Comments). But if any are, the design choice must be explicit, not silent.
 
@@ -97,7 +97,7 @@ You have broad knowledge of how popular apps work. Use it. Do NOT wait for hardc
    - Wallet-address foreign keys → replace with parent entity's $key.
    - Arrays / comma-separated lists → separate relationship entities.
    - M:N joins → dedicated entities carrying the relationship's state (NOT skeletal pivots).
-   - Every entity gets project + entityType + createdAt; mutable/lifecycle entities also get updatedAt.
+   - Every entity gets PROJECT_ATTRIBUTE + entityType + createdAt; mutable/lifecycle entities also get updatedAt.
    - Lifecycle entities get an indexed status field.
 
 10. **Verify completeness.** Audit your candidate model:
@@ -125,9 +125,9 @@ This 11-step process applies to every request. Walk through every step, every ti
 # ARKIV DB CORE PRINCIPLES (NON-NEGOTIABLE)
 0. Project Scoping is Mandatory:
 - Every entity MUST include a project-scoping indexed attribute:
-  { "name": "project", "type": "indexedString", "value": "<GLOBALLY_UNIQUE_PROJECT_STRING>" }
+  { "name": "PROJECT_ATTRIBUTE", "type": "indexedString", "value": "<GLOBALLY_UNIQUE_PROJECT_STRING>" }
 - Never omit this field on any entity.
-- The indexed attribute name must be exactly "project"; do not use "PROJECT_ATTRIBUTE" or "entityType" for this scope.
+- The indexed attribute name must be exactly "PROJECT_ATTRIBUTE"; do not use "project" or "entityType" for this scope.
 - The project VALUE must be globally unique across the entire public Arkiv network — not just unique inside the user's app. Arkiv is a single shared database; another developer building a similar demo will collide with you and pollute your queries forever if your slug is generic.
 - Construct the value as: <appKindOrName>_<organizationOrAuthorSlug>_<shortRandomSuffix>
   - <appKindOrName>: short lowercase snake_case describing the app (e.g., "instagram_like_mvp", "kanban_board", "voting_app").
@@ -148,8 +148,8 @@ This 11-step process applies to every request. Walk through every step, every ti
 - The value MUST be the entity's own name in lowercase camelCase (e.g., for entity "Profile" use "profile"; for "ProfileSkill" use "profileSkill"; for "Like" use "like").
 - The value MUST be unique per entity (no two entities share the same entityType value).
 - This is non-negotiable even if other indexed attributes (like postId, commentId) could distinguish records — those keys can collide across entity definitions; entityType cannot.
-- Assume all downstream queries filter by both "project" AND "entityType" together.
-- Never reuse the "project" attribute to encode entity type; they serve different scopes.
+- Assume all downstream queries filter by both "PROJECT_ATTRIBUTE" AND "entityType" together.
+- Never reuse the "PROJECT_ATTRIBUTE" attribute to encode entity type; they serve different scopes.
 
 1. Identifier Conventions:
 - Never use arbitrary UUIDs for user-centric or contract-centric data.
@@ -288,7 +288,7 @@ Placement rules:
 
 # M:N JOIN ENTITIES MUST CARRY DOMAIN DATA (STRICT)
 - When an entity exists to link two other entities (M:N pivot table), it has TWO valid shapes:
-  (a) **Pure pivot** — only \`project\`, \`entityType\`, two parent FKs, and \`createdAt\`. Use this ONLY when the link's existence is the only fact and no state evolves on the link itself (Like, Follow, PostTag, CourseTag, LikedTrack).
+  (a) **Pure pivot** — only \`PROJECT_ATTRIBUTE\`, \`entityType\`, two parent FKs, and \`createdAt\`. Use this ONLY when the link's existence is the only fact and no state evolves on the link itself (Like, Follow, PostTag, CourseTag, LikedTrack).
   (b) **Stateful join** — pure pivot PLUS indexed attributes that capture state belonging to the relationship itself. Use this whenever the relationship has progress, status, role, ordering, rating, score, quantity, or any timeline data.
 
 - **Default to stateful join (b).** A pivot is "pure" only when you can confidently say: "the existence of this record IS the entire fact, and no follow-up read needs more than 'does it exist?'". For most join entities, that is FALSE.
@@ -314,7 +314,7 @@ Placement rules:
   - Vote: choice (indexedString), weight (indexedNumber).
   - RecipeIngredient: quantity (indexedNumber), + dataField unit.
 
-- BAD: A join entity with only \`project\`, \`entityType\`, two parent keys, and \`createdAt\` when the canonical app's UI clearly shows state evolving on the relationship. That is a skeletal pivot masquerading as a stateful join.
+- BAD: A join entity with only \`PROJECT_ATTRIBUTE\`, \`entityType\`, two parent keys, and \`createdAt\` when the canonical app's UI clearly shows state evolving on the relationship. That is a skeletal pivot masquerading as a stateful join.
 - BAD: Putting relationship state (progressPercent, role, position, grade) on one of the parents instead of the join. The attribute belongs to the RELATIONSHIP.
 
 # IDENTITY ANCHORS: $creator, $owner, $key (STRICT)
@@ -373,13 +373,13 @@ Placement rules:
 - The Profile→Like relation via 'profileKey' IS REQUIRED — Like.profileKey stores the Profile's '$key', NOT the liker's wallet. This makes the canvas relation visible AND points to a specific Profile (not just "any record this wallet created"). Tamper-resistance is preserved by combining with createdBy(Like.$creator) checks at read time.
 - The Comment→Comment self-relation IS REQUIRED whenever Comment has a 'parentCommentKey' field.
 - In that same scenario:
-  - every entity has indexed attribute 'project' with a globally unique value like "instagram_like_mvp_acme_7x9k" (NOT "instagram_like_mvp_v1" — that would collide with every other demo project)
+  - every entity has indexed attribute 'PROJECT_ATTRIBUTE' with a globally unique value like "instagram_like_mvp_acme_7x9k" (NOT "instagram_like_mvp_v1" — that would collide with every other demo project)
   - every entity has indexed attribute 'entityType' with values: "profile", "post", "comment", "like", "follow" respectively
   - Profile does NOT include a 'userId' / 'walletAddress' attribute — Profile's identity IS its $creator wallet; queries use createdBy(walletAddress). deploymentNotes documents this.
-  - Post has: project, entityType, authorKey (FK to Profile's $key), createdAt. NO 'updatedAt' (immutable per user spec). NO synthetic 'postId'.
-  - Comment has: project, entityType, postKey (FK to Post's $key), authorKey (FK to Profile's $key), parentCommentKey (FK to Comment's $key, empty for top-level), createdAt. NO 'updatedAt'. NO synthetic 'commentId'.
-  - Like has: project, entityType, postKey (FK to Post), profileKey (FK to Profile), createdAt. No dataFields. No userId/walletAddress.
-  - Follow has: project, entityType, followerKey (FK to Profile A), followedKey (FK to Profile B), createdAt. No dataFields, no 'note' field.
+  - Post has: PROJECT_ATTRIBUTE, entityType, authorKey (FK to Profile's $key), createdAt. NO 'updatedAt' (immutable per user spec). NO synthetic 'postId'.
+  - Comment has: PROJECT_ATTRIBUTE, entityType, postKey (FK to Post's $key), authorKey (FK to Profile's $key), parentCommentKey (FK to Comment's $key, empty for top-level), createdAt. NO 'updatedAt'. NO synthetic 'commentId'.
+  - Like has: PROJECT_ATTRIBUTE, entityType, postKey (FK to Post), profileKey (FK to Profile), createdAt. No dataFields. No userId/walletAddress.
+  - Follow has: PROJECT_ATTRIBUTE, entityType, followerKey (FK to Profile A), followedKey (FK to Profile B), createdAt. No dataFields, no 'note' field.
   - Profile is the ONLY mutable entity in this design — it has BOTH 'createdAt' and 'updatedAt' because bio/avatar/displayName can be edited.
   - All five entities use the SAME expirationDuration when the user has specified a uniform TTL (e.g., "365d for profiles, posts, comments, likes, and follows" => every entity expirationDuration: "365d"). NEVER downgrade Like/Follow to 30d or 90d when the user said 365d.
   - bootstrap values for ALL indexedString FKs (authorKey, postKey, parentCommentKey, profileKey, followerKey, followedKey) are empty string "". NEVER use synthetic hex like "0x0000...0001".
@@ -403,7 +403,7 @@ Before writing JSON, reason privately through this sequence:
 7. Verify TTL strategy for each entity
 8. Return the full model only after the relationship graph is coherent
 9. Run a final hard-validation pass before output:
-   - every entity includes 'project' indexed attribute
+   - every entity includes 'PROJECT_ATTRIBUTE' indexed attribute
    - the project value has the shape <appKind>_<orgSlug>_<randomSuffix> with a 4–6 char random suffix; reject generic values like "instagram", "myapp", "instagram_like_mvp", or "*_v1"
    - every entity includes 'entityType' indexed attribute whose value is the entity name in lowercase camelCase
    - every cross-entity FK ends in 'Key' (preferred) or 'Id' and is intended to hold the parent's '$key' value, NOT a wallet address
@@ -537,7 +537,7 @@ export const buildDataModelUserPrompt = ({
   currentModel?: GeneratedDataModel
 }) => {
   const sharedRunRequirements = [
-      'Project attribute naming requirement for this run: every entity must include an indexed attribute named exactly "project". Validation is by literal underscore-split: at least 3 underscore-separated tokens total, last token is a 4–6 char alphanumeric random suffix, must not end in "_v1"/"_v2". Multi-word app names like "agent_memory_layer" count as MULTIPLE tokens (3, not 1). Passing examples: "twitter_like_mvp_acme_7x9k", "agent_memory_layer_solo_n4x8p", "agent_memory_solo_q7m4x". Never prefix with a wallet address. Invent a short org/author slug if the user has not supplied one.',
+      'Project attribute naming requirement for this run: every entity must include an indexed attribute named exactly "PROJECT_ATTRIBUTE". Validation is by literal underscore-split: at least 3 underscore-separated tokens total, last token is a 4–6 char alphanumeric random suffix, must not end in "_v1"/"_v2". Multi-word app names like "agent_memory_layer" count as MULTIPLE tokens (3, not 1). Passing examples: "twitter_like_mvp_acme_7x9k", "agent_memory_layer_solo_n4x8p", "agent_memory_solo_q7m4x". Never prefix with a wallet address. Invent a short org/author slug if the user has not supplied one.',
       'Entity type tagging requirement for this run: every entity must ALSO include an indexed attribute named exactly "entityType" (indexedString) whose value is the entity name in lowercase camelCase (e.g., "profile", "post", "comment", "like", "follow", "profileSkill"). The value must be unique per entity. Do not skip this on any entity, including join/relationship entities like Like or Follow.',
       'Mutability requirement for this run: respect the user\'s stated answers about editability. If the user says posts and/or comments are immutable, those entities MUST NOT have "updatedAt". Only entities the user marked as editable get both "createdAt" and "updatedAt". Default mutability by category applies ONLY when the user has not stated otherwise.',
       'Foreign-key semantics for this run: every cross-entity FK stores the parent\'s deployed \'$key\' (the 32-byte hex returned by Arkiv at creation time), NOT a wallet address. Prefer the \'Key\' suffix for these attributes (authorKey, postKey, profileKey, followerKey, parentCommentKey). Bootstrap values are empty string. Do NOT add a wallet-address attribute (userId, likerId, voterId, walletAddress) that duplicates $creator on entities where the actor IS the creator (Profile, Like, Vote, Bookmark, Settings).',
@@ -600,7 +600,7 @@ export const buildDataModelEvaluatorUserPrompt = ({
     '- If threaded comments are implied by parentCommentId, missing Comment->Comment relation is a critical violation.',
     '- If mutable entities are present without updatedAt, this is a critical violation.',
     '- If removable-like semantics conflict with append-only soft-delete modeling, this is a critical violation.',
-    '- Critical violation if any entity is missing an indexed attribute named exactly "project".',
+    '- Critical violation if any entity is missing an indexed attribute named exactly "PROJECT_ATTRIBUTE".',
     '- Critical violation if any project attribute value starts with a connected wallet address prefix like "0x...-".',
     '- Critical violation if the project attribute value is generic / globally non-unique. The slug is validated by SPLITTING ON UNDERSCORES — count the underscore-separated tokens literally, do NOT collapse semantic concepts (e.g., "agent_memory_layer" is THREE tokens, not one). To pass: (1) the slug must have at least 3 underscore-separated tokens total, (2) the LAST token must be a 4–6 character alphanumeric random suffix (e.g., 7x9k, n4x7q, q8m4k, q7m4x), (3) the slug must NOT end with version markers like "_v1" or "_v2", (4) the slug must NOT contain only a single semantic word (e.g., "instagram", "myapp"). Generic org segments like "demo", "solo", "test", "acme", "lab", "studio" ARE acceptable as long as the random-suffix requirement is met. PASSING examples: "instagram_like_mvp_acme_7x9k" (5 tokens), "coursera_style_learning_demo_n4x7q" (5 tokens), "agent_memory_layer_solo_n4x8p" (5 tokens), "agent_memory_solo_q7m4x" (4 tokens). REJECTING example: "myapp" (1 token), "instagram_like_mvp_v1" (4 tokens but last token is a version marker). Do NOT reject a slug for "semantic" reasons or "not enough distinct semantic concepts" — only the literal token count and suffix shape matter.',
     '- Critical violation if any entity is missing an indexed attribute named exactly "entityType" (indexedString).',
@@ -618,7 +618,7 @@ export const buildDataModelEvaluatorUserPrompt = ({
     '- Critical violation if an enum-shaped field (role, status, kind, category, type, state, visibility, priority, severity) is placed in dataFields instead of indexedAttributes. Enum fields are queryable filters and MUST be indexed.',
     '- Critical violation if the candidate stores a count/aggregate attribute on a parent entity (likeCount, commentCount, subscriberCount, viewCount, followerCount). Counts must be derived from the relationship entity via .count(); they cannot be safely stored without atomic increments.',
     '- Critical violation if a lifecycle 1:N child entity (Reminder, Notification, Order, Booking, Application, Delivery, Session, Job, Alert, RunStep) lacks an indexed status attribute OR lacks updatedAt. Such entities have evolving state and need both. Pure event-log entities (audit logs, watch history) where each occurrence is a NEW immutable record are exempt.',
-    '- Critical violation if a stateful M:N join entity is a skeletal pivot. Apply this reasoning: name the relationship in plain English ("a student is enrolled in a course", "a track is in a playlist", "a member belongs to a workspace"). Ask what state the canonical app\'s UI would render about that relationship that does not belong to either parent (progress, role, position, grade, status, rating, timeline). If such state exists in the canonical app and the candidate join has only project/entityType/two FKs/createdAt, it is a skeletal pivot — REJECT. Pure-pivot joins (Like, Follow, PostTag, CourseTag, LikedTrack) where existence alone is the entire fact ARE exempt.',
+    '- Critical violation if a stateful M:N join entity is a skeletal pivot. Apply this reasoning: name the relationship in plain English ("a student is enrolled in a course", "a track is in a playlist", "a member belongs to a workspace"). Ask what state the canonical app\'s UI would render about that relationship that does not belong to either parent (progress, role, position, grade, status, rating, timeline). If such state exists in the canonical app and the candidate join has only PROJECT_ATTRIBUTE/entityType/two FKs/createdAt, it is a skeletal pivot — REJECT. Pure-pivot joins (Like, Follow, PostTag, CourseTag, LikedTrack) where existence alone is the entire fact ARE exempt.',
     '- Critical violation if the candidate model is missing entities the canonical reference app for this category clearly requires. Apply this reasoning: name the dominant reference app the user is describing (YouTube for video sharing, Coursera for LMS, Spotify for music streaming, GitHub for dev platform, MemGPT/Mem0 for agent memory, etc.). Mentally list the tables a traditional SQL backend would have. If a clearly-canonical entity is missing, REJECT. Specific category checks: (a) video sharing must include WatchHistory and Subscription; (b) LMS must include graded Submission when assessments are implied; (c) music app with playlists must include PlaylistTrack-with-position; (d) AGENT MEMORY / AI MEMORY / LLM MEMORY systems MUST include all of Profile + Conversation + Message + LongTermMemory (or DistilledMemory) + Task + WorkingMemory by default — under-scoping by omitting Task or WorkingMemory is a critical violation; (e) RAG/vector systems must include Document + DocumentChunk + EmbeddingMetadata. Do not enforce arbitrary minimum entity lists — enforce the canonical reference shape.',
     '- Critical violation if deploymentNotes is an empty array.',
     'Return only JSON for the evaluation schema.',

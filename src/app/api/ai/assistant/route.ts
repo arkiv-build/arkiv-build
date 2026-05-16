@@ -600,7 +600,7 @@ export async function POST(request: Request) {
         'Populate seed values for the existing Arkiv visual schema model.',
         'Return the full model JSON using the same exact entities, same relations, same indexed attribute names/types, and same data field keys.',
         'Only change indexedAttributes[].value and dataFields[].value where a useful concrete demo/bootstrap value is appropriate.',
-        'Keep project and entityType values unchanged.',
+        'Keep PROJECT_ATTRIBUTE and entityType values unchanged.',
         'Keep every cross-entity foreign-key value empty string when the parent entity is part of this same undeployed model, because Arkiv returns new $key values only after the batch create transaction is mined.',
         'Use realistic values that match the user app idea and make the entities ready to deploy as demo data.',
         useCase ? `User app idea and constraints:\n${useCase}` : undefined,

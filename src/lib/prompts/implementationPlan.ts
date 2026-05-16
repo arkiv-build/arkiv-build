@@ -78,8 +78,8 @@ Schema integrity — non-negotiable checks before returning the plan:
 - **Lifecycle wiring.** If you mention \`ExpirationTime\` or TTL, at least one entity must declare a concrete TTL strategy (which entity, how long, what triggers expiry). Don't dangle SDK helpers without binding them to a phase.
 
 Arkiv schema integrity — required in every plan (sourced from the official \`arkiv-best-practices\` skill):
-- **\`project\` is non-negotiable.** Define it once (e.g., \`{ key: "project", value: "<unique-app-slug>" }\` exported from \`src/lib/arkiv/...\`). Every entity in the entity list MUST include it in its indexed attributes. Every query pattern MUST filter on it. Its value must be a globally unique app/project slug and must not be prefixed with a wallet address. If a query example is shown without it, the plan is wrong.
-- **Trust = \`project\` + \`.createdBy(TRUSTED_WALLET)\`.** \`project\` alone does NOT prevent spam — any wallet can create entities tagged with your project. If the design has a backend/agent that publishes data the frontend reads, the plan MUST:
+- **\`PROJECT_ATTRIBUTE\` is non-negotiable.** Define it once (e.g., \`{ key: "PROJECT_ATTRIBUTE", value: "<unique-app-slug>" }\` exported from \`src/lib/arkiv/...\`). Every entity in the entity list MUST include it in its indexed attributes. Every query pattern MUST filter on it. Its value must be a globally unique app/project slug and must not be prefixed with a wallet address. If a query example is shown without it, the plan is wrong.
+- **Trust = \`PROJECT_ATTRIBUTE\` + \`.createdBy(TRUSTED_WALLET)\`.** \`PROJECT_ATTRIBUTE\` alone does NOT prevent spam — any wallet can create entities tagged with your project. If the design has a backend/agent that publishes data the frontend reads, the plan MUST:
   1. Declare a \`CREATOR_WALLET_ADDRESS\` (or equivalent) constant for the trusted writer.
   2. Use \`.createdBy(CREATOR_WALLET_ADDRESS)\` in every read query for that data.
   3. Use \`$creator\` (immutable) — NOT \`$owner\` (mutable) — for the trust filter.
@@ -135,7 +135,7 @@ export const buildImplementationPlanUserPrompt = ({
   [
     'Create an implementation plan for this Arkiv app idea that an AI coding agent can execute directly.',
     IMPLEMENTATION_PLAN_TARGET_INSTRUCTIONS[exportTarget],
-    'Project attribute naming requirement for this run: define the project-scoping indexed attribute as "project" with a globally unique app/project slug value and no wallet address prefix.',
+    'Project attribute naming requirement for this run: define the project-scoping indexed attribute as "PROJECT_ATTRIBUTE" with a globally unique app/project slug value and no wallet address prefix.',
     `Latest user request or app idea:\n${useCase}`,
     messages.length > 0
       ? `Conversation context:\n${messages

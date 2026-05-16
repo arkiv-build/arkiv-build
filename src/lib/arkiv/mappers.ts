@@ -13,8 +13,7 @@ import {
   type SystemAttribute,
 } from "@/lib/arkiv/types";
 
-const PROJECT_ATTRIBUTE_KEY = "project";
-const LEGACY_PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
+const PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
 const ENTITY_TYPE_ATTRIBUTE_KEY = "entityType";
 const WALLET_PREFIX_PATTERN = /^(0x[a-fA-F0-9]{40})(-.+)?$/;
 
@@ -111,10 +110,7 @@ const coerceDurationFromBlocks = (
 
 const getProjectAttributeValue = (entity: Entity) =>
   entity.attributes
-    .find(
-      (attribute) =>
-        attribute.key === LEGACY_PROJECT_ATTRIBUTE_KEY || attribute.key.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
-    )
+    .find((attribute) => attribute.key === PROJECT_ATTRIBUTE_KEY)
     ?.value?.toString();
 
 const formatProjectAttributeLabel = (projectAttributeValue: string) => {

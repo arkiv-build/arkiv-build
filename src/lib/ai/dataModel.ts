@@ -13,19 +13,18 @@ import {
   SCHEMA_DATA_FIELD_ID_PREFIX,
   SCHEMA_DEFAULT_EXPIRATION_DURATION,
   SCHEMA_EDGE_ID_PREFIX,
+  SCHEMA_ENTITY_NODE_HEIGHT as ENTITY_NODE_HEIGHT,
   SCHEMA_ENTITY_NODE_WIDTH,
   SCHEMA_ENTITY_START_X,
   SCHEMA_ENTITY_START_Y,
   SCHEMA_FIELD_ID_PREFIX,
+  SCHEMA_LAYOUT_EDGE_SEP as DAGRE_EDGE_SEP,
+  SCHEMA_LAYOUT_NODE_SEP as DAGRE_NODE_SEP,
+  SCHEMA_LAYOUT_RANK_SEP as DAGRE_RANK_SEP,
+  SCHEMA_LAYOUT_VERTICAL_GAP as LAYOUT_VERTICAL_GAP,
   SCHEMA_NODE_ID_PREFIX,
 } from '@/lib/constants/schema'
 import { sanitizeIdentifier } from '@/lib/arkiv/schema'
-
-const ENTITY_NODE_HEIGHT = 110
-const DAGRE_RANK_SEP = 250
-const DAGRE_NODE_SEP = 130
-const DAGRE_EDGE_SEP = 70
-const LAYOUT_VERTICAL_GAP = 210
 
 const RELATION_COLORS = [
   '#ff7a45',
@@ -40,8 +39,7 @@ const RELATION_COLORS = [
   '#84cc16',
 ] as const
 
-const PROJECT_ATTRIBUTE_KEY = 'project'
-const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
+const PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
 const ENTITY_TYPE_ATTRIBUTE_KEY = 'entityType'
 
 const toEntityTypeValue = (entityName: string) => {
@@ -309,9 +307,7 @@ export const serializeCanvasToGeneratedDataModel = (
     if (
       node.data.projectAttributeValue &&
       !indexedAttributes.some(
-        (attribute) =>
-          attribute.name === LEGACY_PROJECT_ATTRIBUTE_KEY ||
-          attribute.name.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+        (attribute) => attribute.name.trim() === PROJECT_ATTRIBUTE_KEY,
       )
     ) {
       indexedAttributes.unshift({
@@ -629,9 +625,7 @@ export const buildSchemaGraphFromGeneratedModel = (
         ? entity.indexedAttributes
         : (() => {
             const projectIndex = entity.indexedAttributes.findIndex(
-              (attribute) =>
-                attribute.name.trim() === LEGACY_PROJECT_ATTRIBUTE_KEY ||
-                attribute.name.trim().toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+              (attribute) => attribute.name.trim() === PROJECT_ATTRIBUTE_KEY,
             )
             const injected: GeneratedIndexedAttribute = {
               name: ENTITY_TYPE_ATTRIBUTE_KEY,
@@ -652,9 +646,7 @@ export const buildSchemaGraphFromGeneratedModel = (
         ),
       )
       const projectAttributeValue = indexedAttributesWithEntityType.find(
-        (attribute) =>
-          attribute.name.trim() === LEGACY_PROJECT_ATTRIBUTE_KEY ||
-          attribute.name.trim().toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+        (attribute) => attribute.name.trim() === PROJECT_ATTRIBUTE_KEY,
       )?.value
       const dataFields = entity.dataFields.map((field) =>
         createDataField(

@@ -80,8 +80,7 @@ let balanceSyncStop: (() => void) | undefined;
 let projectCollisionRequestId = 0;
 
 const BALANCE_SYNC_INTERVAL_MS = 20_000;
-const PROJECT_ATTRIBUTE_KEY = 'project';
-const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE';
+const PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE';
 
 const normalizeAddress = (value?: string) => value?.trim().toLowerCase();
 const normalizeProjectAttributeValue = (value: string) => value.trim().toLowerCase();
@@ -89,7 +88,7 @@ const normalizeProjectAttributeValue = (value: string) => value.trim().toLowerCa
 const getProjectAttributeValueForDraft = (node: SchemaNode) => {
   const fieldValue = node.data.fields.find((field) => {
     const name = field.name.trim();
-    return name === LEGACY_PROJECT_ATTRIBUTE_KEY || name.toLowerCase() === PROJECT_ATTRIBUTE_KEY;
+    return name === PROJECT_ATTRIBUTE_KEY;
   })?.value.trim();
 
   return fieldValue || node.data.projectAttributeValue?.trim() || '';

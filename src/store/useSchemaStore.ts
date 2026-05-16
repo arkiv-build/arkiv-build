@@ -135,8 +135,7 @@ type SchemaState = {
 };
 
 const ENTITY_HORIZONTAL_GAP = 96;
-const PROJECT_ATTRIBUTE_KEY = "project";
-const LEGACY_PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
+const PROJECT_ATTRIBUTE_KEY = "PROJECT_ATTRIBUTE";
 const ENTITY_TYPE_ATTRIBUTE_KEY = "entityType";
 const WALLET_PREFIX_PATTERN = /^(0x[a-fA-F0-9]{40})(-.+)?$/;
 
@@ -190,8 +189,7 @@ const upsertProjectAttributeField = (
   projectAttributeValue: string,
 ): EntityField[] => {
   const projectAttributeIndex = fields.findIndex(
-    (field) =>
-      field.name === LEGACY_PROJECT_ATTRIBUTE_KEY || field.name.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+    (field) => field.name.trim() === PROJECT_ATTRIBUTE_KEY,
   );
 
   if (projectAttributeIndex >= 0) {
@@ -222,7 +220,7 @@ const removeProjectAttributeField = (fields: EntityField[]) =>
   fields.filter((field) => {
     const name = field.name.trim();
 
-    return name !== LEGACY_PROJECT_ATTRIBUTE_KEY && name.toLowerCase() !== PROJECT_ATTRIBUTE_KEY;
+    return name !== PROJECT_ATTRIBUTE_KEY;
   });
 
 const upsertEntityTypeField = (
@@ -364,7 +362,7 @@ const applyProjectAttributeToConnectedNodes = (
 
 const isProjectAttributeField = (field: EntityField) => {
   const name = field.name.trim();
-  return name === LEGACY_PROJECT_ATTRIBUTE_KEY || name.toLowerCase() === PROJECT_ATTRIBUTE_KEY;
+  return name === PROJECT_ATTRIBUTE_KEY;
 };
 
 export const useSchemaStore = create<SchemaState>((set, get) => ({

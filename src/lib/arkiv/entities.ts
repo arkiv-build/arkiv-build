@@ -22,8 +22,7 @@ import type {
 } from "@/lib/arkiv/types";
 import { DESIGNER_APP_ID, DESIGNER_PAYLOAD_VERSION } from "@/lib/arkiv/types";
 
-const PROJECT_ATTRIBUTE_KEY = 'project'
-const LEGACY_PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
+const PROJECT_ATTRIBUTE_KEY = 'PROJECT_ATTRIBUTE'
 const ENTITY_TYPE_ATTRIBUTE_KEY = 'entityType'
 
 const PROJECT_QUERY_LIMIT = 100
@@ -61,31 +60,17 @@ export const fetchEntitiesByProjectAttribute = async (
   }
 
   const publicClient = createArkivPublicClient();
-  const queryByAttribute = async (attributeKey: string) => {
-    const result = await publicClient
-      .buildQuery()
-      .where(eq(attributeKey, trimmedValue))
-      .withAttributes(true)
-      .withMetadata(true)
-      .withPayload(true)
-      .orderBy(desc("createdAtBlock", "number"))
-      .limit(PROJECT_QUERY_LIMIT)
-      .fetch();
+  const result = await publicClient
+    .buildQuery()
+    .where(eq(PROJECT_ATTRIBUTE_KEY, trimmedValue))
+    .withAttributes(true)
+    .withMetadata(true)
+    .withPayload(true)
+    .orderBy(desc("createdAtBlock", "number"))
+    .limit(PROJECT_QUERY_LIMIT)
+    .fetch();
 
-    return result.entities.map(mapEntityToSummary);
-  };
-
-  const [currentMatches, legacyMatches] = await Promise.all([
-    queryByAttribute(PROJECT_ATTRIBUTE_KEY),
-    queryByAttribute(LEGACY_PROJECT_ATTRIBUTE_KEY),
-  ]);
-  const byKey = new Map<Hex, OwnedArkivEntitySummary>();
-
-  for (const entity of [...currentMatches, ...legacyMatches]) {
-    byKey.set(entity.key, entity);
-  }
-
-  return Array.from(byKey.values());
+  return result.entities.map(mapEntityToSummary);
 };
 
 export const fetchEntityDetails = async (
@@ -166,9 +151,7 @@ const buildIndexedAttributes = ({
   }));
 
   const projectAttribute = attributes.find(
-    (attribute) =>
-      attribute.key === LEGACY_PROJECT_ATTRIBUTE_KEY ||
-      attribute.key.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+    (attribute) => attribute.key === PROJECT_ATTRIBUTE_KEY,
   );
 
   if (!projectAttribute) {
@@ -184,9 +167,7 @@ const buildIndexedAttributes = ({
 
   if (!entityTypeAttribute) {
     const projectAttributeIndex = attributes.findIndex(
-      (attribute) =>
-        attribute.key === LEGACY_PROJECT_ATTRIBUTE_KEY ||
-        attribute.key.toLowerCase() === PROJECT_ATTRIBUTE_KEY,
+      (attribute) => attribute.key === PROJECT_ATTRIBUTE_KEY,
     );
     attributes.splice(projectAttributeIndex >= 0 ? projectAttributeIndex + 1 : 0, 0, {
       key: ENTITY_TYPE_ATTRIBUTE_KEY,

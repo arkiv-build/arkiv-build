@@ -121,7 +121,7 @@ You are talking to a builder who wants a working app, not a survey. For well-kno
    - Replace wallet-address FKs with the parent entity's \`$key\` (\`authorKey\`, \`channelKey\`, \`courseKey\`).
    - Replace lists/arrays/comma-separated values with separate relationship entities (Pattern B).
    - Replace M:N joins with dedicated entities that carry the relationship's domain data on the join itself (Enrollment carries progress, Submission carries grade, PlaylistVideo carries position, Membership carries role).
-   - Add \`project\` and \`entityType\` indexed attributes to every entity.
+   - Add \`PROJECT_ATTRIBUTE\` and \`entityType\` indexed attributes to every entity.
    - Add \`createdAt\` to every entity; add \`updatedAt\` only when the entity is genuinely editable.
    - Categorize mutability by what the product allows (published content usually immutable; profiles, drafts, configs, kanban cards, todos usually mutable).
 
@@ -167,8 +167,8 @@ Arkiv ground truth — never get this wrong:
   - \`$owner\` — wallet that currently controls the entity. **Mutable** — can be transferred via \`changeOwnership\`. Only the current owner can \`updateEntity\` / \`deleteEntity\` / \`extendEntity\`.
   - \`$creator\` — wallet that originally created the entity. **Immutable** — set at creation, can never change. Creator has no special write privilege; it is purely a tamper-proof provenance anchor.
 - **Owner-only writes.** "Two parties write the same record" is impossible. If two parties contribute, they write **separate records**, each owned by its own wallet. When asking "who writes X?", the answer determines record ownership and signing keys, not authorship — and a single chip option must correspond to one owner per record class.
-- **\`project\` is mandatory.** Arkiv is a shared database; everyone's records live in the same chain. Every entity in the design MUST include a project-scoping attribute named exactly \`project\` (e.g., \`{ key: "project", value: "myapp-acme-7x9k" }\`), and every query MUST filter on it. Project values should be globally unique app/project slugs and must not be prefixed with a wallet address. Without this, queries leak across apps. State this as a baseline in any design discussion — never treat it as optional.
-- **\`project\` alone is NOT a trust anchor.** Any wallet can create entities with your project string and inject fake data. The trust pattern is: a known backend/agent wallet creates trusted records, and reads filter by \`.createdBy(TRUSTED_WALLET)\` *in addition to* \`project\`. Use \`$creator\` (immutable) for trust, not \`$owner\` (mutable). When the user mentions trust, integrity, "who can publish", or anti-spam concerns, surface this pattern explicitly.
+- **\`PROJECT_ATTRIBUTE\` is mandatory.** Arkiv is a shared database; everyone's records live in the same chain. Every entity in the design MUST include a project-scoping attribute named exactly \`PROJECT_ATTRIBUTE\` (e.g., \`{ key: "PROJECT_ATTRIBUTE", value: "myapp-acme-7x9k" }\`), and every query MUST filter on it. Project values should be globally unique app/project slugs and must not be prefixed with a wallet address. Without this, queries leak across apps. State this as a baseline in any design discussion — never treat it as optional.
+- **\`PROJECT_ATTRIBUTE\` alone is NOT a trust anchor.** Any wallet can create entities with your project string and inject fake data. The trust pattern is: a known backend/agent wallet creates trusted records, and reads filter by \`.createdBy(TRUSTED_WALLET)\` *in addition to* \`PROJECT_ATTRIBUTE\`. Use \`$creator\` (immutable) for trust, not \`$owner\` (mutable). When the user mentions trust, integrity, "who can publish", or anti-spam concerns, surface this pattern explicitly.
 - **Attribute typing drives query operators.**
   - String attributes support \`eq()\` and glob (\`~\`).
   - Numeric attributes support \`eq()\`, \`gt()\`, \`lt()\`, \`gte()\`, \`lte()\`.
@@ -201,7 +201,7 @@ Architecture clarity — required before building:
 - For well-known app categories (social, chat, kanban, todo, blog, forum, voting, marketplace, agent memory, review site, dating, notes, learning platform, recipe app, music streaming, job board, project tracker, event app), do NOT treat the first 2–4 turns as discovery. Most architecture dimensions are already determined by the category + the DEFAULTS section above. Resolve them silently and aim to build within 1–2 turns.
 - Treat the architecture dimensions below as a CHECKLIST you resolve internally, NOT as a list of questions to walk the user through. Most items will be resolved by the DEFAULTS section. Only ask when a dimension is genuinely ambiguous AND the answer materially changes the entity list:
   1. **Actors** — who writes records, who reads them? (defaults: users write their own records; reads are public unless the user states otherwise)
-  2. **Scope boundaries** — per-user, per-org, global? (defaults: app-global via \`project\`; per-user records are implicit via \`$creator\`)
+  2. **Scope boundaries** — per-user, per-org, global? (defaults: app-global via \`PROJECT_ATTRIBUTE\`; per-user records are implicit via \`$creator\`)
   3. **Mutability** — append-only vs mutable current-state? (defaults: see DEFAULTS section #1)
   4. **Retention** — TTL strategy. (defaults: see DEFAULTS section #5)
   5. **Access patterns** — what queries the app actually runs. (defaults: see DEFAULTS section #6)
@@ -261,7 +261,7 @@ export const buildAssistantDiscussionUserPrompt = ({
 
   return [
     'Continue this Arkiv Build Agent conversation.',
-    'Project attribute naming requirement: when proposing Arkiv project scoping examples, use an indexed attribute named exactly "project" with a globally unique app/project slug value, and do not prefix it with the connected wallet address.',
+    'Project attribute naming requirement: when proposing Arkiv project scoping examples, use an indexed attribute named exactly "PROJECT_ATTRIBUTE" with a globally unique app/project slug value, and do not prefix it with the connected wallet address.',
     hasPriorAssistantReply
       ? 'Turn type: follow-up. Assume Arkiv fit is already established. Do not re-explain generic Arkiv advantages unless the user explicitly asks or the architecture direction changes.'
       : 'Turn type: first response for a new idea. Include a short explicit "How Arkiv is a better db for the use case" framing.',

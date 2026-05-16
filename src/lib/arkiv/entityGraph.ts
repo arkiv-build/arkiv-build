@@ -10,12 +10,14 @@ import {
   SCHEMA_EDGE_ID_PREFIX,
   SCHEMA_ENTITY_START_X,
   SCHEMA_ENTITY_START_Y,
+  SCHEMA_LAYOUT_HORIZONTAL_GAP,
+  SCHEMA_LAYOUT_VERTICAL_GAP,
   SCHEMA_NODE_ID_PREFIX,
 } from '@/lib/constants/schema'
 import type { EntityNodeData, SchemaEdge, SchemaNode } from '@/store/useSchemaStore'
 
-const ENTITY_HORIZONTAL_GAP = 600
-const ENTITY_VERTICAL_GAP = 300
+const ENTITY_HORIZONTAL_GAP = SCHEMA_LAYOUT_HORIZONTAL_GAP
+const ENTITY_VERTICAL_GAP = SCHEMA_LAYOUT_VERTICAL_GAP
 
 export type PersistedEntityGraphSnapshot = PersistedEntitySnapshot & {
   expirationDuration: ExpirationDuration

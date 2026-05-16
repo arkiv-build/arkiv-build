@@ -1238,7 +1238,7 @@
 190 | ```typescript
 191 | /** All entities created by this app share this attribute for easy filtering. */
 192 | export const PROJECT_ATTRIBUTE = {
-193 |   key: "project",
+193 |   key: "PROJECT_ATTRIBUTE",
 194 |   value: "<GLOBALLY_UNIQUE_STRING_THAT_IDENTIFIES_THE_PROJECT>",
 195 | } as const;
 196 | 
@@ -1418,7 +1418,7 @@
 370 | ```typescript
 371 | // lib/arkiv.ts — export your trusted backend wallet address
 372 | export const PROJECT_ATTRIBUTE = {
-373 |   key: "project",
+373 |   key: "PROJECT_ATTRIBUTE",
 374 |   value: "myapp-acme-7x9k",
 375 | } as const;
 376 | 
